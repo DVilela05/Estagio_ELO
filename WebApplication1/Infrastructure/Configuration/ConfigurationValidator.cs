@@ -65,32 +65,6 @@ namespace WebApplication1.Infrastructure.Configuration
                     "Configura em appsettings.json (ex: https://login.microsoftonline.com).");
         }
 
-        public static void ValidateBusinessApiSettings(BusinessApiSettings settings, bool isDevelopment)
-        {
-            if (settings == null)
-                throw new ConfigurationException("BusinessApiSettings é nulo. Verifica a configuração em Program.cs");
 
-            if (settings.IsStubMode)
-                return;
-
-            if (string.IsNullOrWhiteSpace(settings.AttendancePath))
-                throw new ConfigurationException(
-                    "BusinessApi:AttendancePath é obrigatório quando BaseUrl está configurado.");
-
-            if (!settings.HasServiceSecurity)
-                throw new ConfigurationException(
-                    "BusinessApi exige segurança entre serviços: configura ServiceToken e HmacSecret " +
-                    "(User Secrets ou variáveis de ambiente)."
-                );
-
-            if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out var uri))
-                throw new ConfigurationException("BusinessApi:BaseUrl inválido.");
-
-            bool isHttps = string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
-            if (!isHttps && !(isDevelopment && settings.AllowInsecureHttp))
-                throw new ConfigurationException(
-                    "BusinessApi:BaseUrl deve usar HTTPS em produção. " +
-                    "Para dev local com HTTP, define AllowInsecureHttp=true apenas em appsettings.Development.json");
-        }
     }
 }

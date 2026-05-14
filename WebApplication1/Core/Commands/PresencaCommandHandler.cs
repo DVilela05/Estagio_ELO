@@ -1,5 +1,6 @@
-using WebApplication1.Core.Interfaces;
+using Microsoft.Extensions.Options;
 using WebApplication1.Core.Models;
+using WebApplication1.Infrastructure.Configuration;
 using WebApplication1.Infrastructure.ExternalApis;
 using Microsoft.Extensions.Logging;
 using Polly;
@@ -23,7 +24,7 @@ namespace WebApplication1.Core.Commands
     /// </summary>
     public class PresencaCommandHandler : ICommandHandler
     {
-        private readonly IBusinessApiClient _businessApiClient;
+        private readonly WebServiceSettings _wsSettings;
         private readonly ILogger<PresencaCommandHandler> _logger;
 
         // ─── Política de retry Polly ─────────────────────────────────
@@ -79,9 +80,9 @@ namespace WebApplication1.Core.Commands
         private const string RespostaErroGenerico =
             "⚠️ Houve um problema ao registar a presença. A equipa técnica foi notificada. Tenta novamente mais tarde.";
 
-        public PresencaCommandHandler(IBusinessApiClient businessApiClient, ILogger<PresencaCommandHandler> logger)
+        public PresencaCommandHandler(IOptions<WebServiceSettings> wsOptions, ILogger<PresencaCommandHandler> logger)
         {
-            _businessApiClient = businessApiClient;
+            _wsSettings = wsOptions.Value;
             _logger = logger;
         }
 
@@ -141,8 +142,8 @@ namespace WebApplication1.Core.Commands
                     Console.WriteLine($"[DEBUG] A ENVIAR PARA O WEBSERVICE NO BODY: {bodyParaEnviar}");
                     Console.WriteLine("=================================================\n");
 
-                    string result = await MobileServiceUtils.WCFRESTServiceCall(
-                        "POST", "metaim1", bodyParaEnviar, _logger);
+                    string result = await WebServiceUtils.WCFRESTServiceCall(
+                        "POST", "metaim1", bodyParaEnviar, _logger, _wsSettings.BaseUrl);
 
                     // Se a resposta indica erro transitório do lado do WCF
                     // (ex: EXCEPTION|...), lançar para que o Polly retente
@@ -158,7 +159,7 @@ namespace WebApplication1.Core.Commands
                 _logger.LogInformation("📱 metaim1 raw response: {Response}", rawResponse);
 
                 // Descodificar Base64 (se aplicável)
-                string response = MobileServiceUtils.Base64Decode(rawResponse.Replace("\"", ""));
+                string response = WebServiceUtils.Base64Decode(rawResponse.Replace("\"", ""));
                 _logger.LogInformation("📱 metaim1 decoded response: {Response}", response);
 
                 // ─── Tratar respostas ────────────────────────────────────────

@@ -111,41 +111,15 @@ builder.Services.AddHttpClient<IMessagingService, TeamsService>(client =>
 // por plataforma. Essencial para ter WhatsApp + Teams em simultâneo.
 builder.Services.AddSingleton<MessagingServiceFactory>();
 
-// ─── Configuração do servidor de negócio ─────────────────────────────────────
-// Mapeia "BusinessApi" do appsettings.json para BusinessApiSettings.
-// Se BaseUrl estiver vazio → modo stub (simulação para desenvolvimento).
-// Se BaseUrl estiver preenchido → modo real (HTTP ao servidor de negócio).
-builder.Services.Configure<BusinessApiSettings>(
-    builder.Configuration.GetSection("BusinessApi"));
+// ─── Configuração do WebService WCF ────────────────────────────────────────
+builder.Services.Configure<WebServiceSettings>(
+    builder.Configuration.GetSection("WebService"));
 
 // ─── Configuração de administração por chat ────────────────────────────────
 builder.Services.Configure<AdminSettings>(
     builder.Configuration.GetSection("Admin"));
 
-// ─── Cliente para servidor de negócio (com Polly retry) ──────────────────────
-// HttpClient gerido com retry automático para erros transitórios.
-// Política: 3 tentativas com backoff exponencial (1s, 2s, 4s).
-var businessApiSettings = builder.Configuration
-    .GetSection("BusinessApi").Get<BusinessApiSettings>() ?? new BusinessApiSettings();
 
-builder.Services.AddHttpClient<IBusinessApiClient, BusinessApiClient>(client =>
-{
-    if (!string.IsNullOrWhiteSpace(businessApiSettings.BaseUrl))
-        client.BaseAddress = new Uri(businessApiSettings.BaseUrl);
-
-    client.Timeout = TimeSpan.FromSeconds(businessApiSettings.TimeoutSeconds);
-})
-.AddPolicyHandler(HttpPolicyExtensions
-    .HandleTransientHttpError()
-    .WaitAndRetryAsync(
-        retryCount: businessApiSettings.MaxRetries,
-        sleepDurationProvider: attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)),
-        onRetry: (outcome, timespan, retryAttempt, _) =>
-        {
-            Console.WriteLine(
-                $"⟳ Retry #{retryAttempt} para servidor de negócio após {timespan.TotalSeconds}s — " +
-                $"Motivo: {outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString()}");
-        }));
 
 // ─── Sistema de comandos ─────────────────────────────────────────────────────
 // Cada comando é uma classe isolada. Para adicionar um novo comando:
@@ -195,9 +169,8 @@ try
     if (teamsSettings != null)
         ConfigurationValidator.ValidateTeamsSettings(teamsSettings);
 
-    var businessSettings = app.Configuration.GetSection("BusinessApi").Get<BusinessApiSettings>();
-    if (businessSettings != null)
-        ConfigurationValidator.ValidateBusinessApiSettings(businessSettings, app.Environment.IsDevelopment());
+    var webServiceSettings = app.Configuration.GetSection("WebService").Get<WebServiceSettings>();
+    // No futuro podes adicionar validação para o WebService aqui se quiseres.
 
     Console.ForegroundColor = ConsoleColor.Green;
     Console.WriteLine("✅ Configuração validada com sucesso.");

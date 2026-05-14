@@ -10,7 +10,7 @@ namespace WebApplication1.Infrastructure.ExternalApis
     ///   1. Chamada direta (GET/POST) ao endpoint REST
     ///   2. Base64 decode da resposta
     /// </summary>
-    public static class MobileServiceUtils
+    public static class WebServiceUtils
     {
         /// <summary>
         /// Faz uma chamada HTTP (GET/POST) ao serviço REST móvel.
@@ -27,8 +27,8 @@ namespace WebApplication1.Infrastructure.ExternalApis
         {
             string returnString = string.Empty;
 
-            // Se não foi passado baseUrl, tenta usar configuração (futuro)
-            string urlWebService = baseUrl ?? "https://eloapps.elo-si.com/DEV/nGMobileWS/nGMobileWS.svc/rest/";
+            // Se não foi passado baseUrl, o serviço deve falhar ou usar o que vier das configs
+            string urlWebService = baseUrl ?? string.Empty;
 
             try
             {

@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using WebApplication1.Core.Interfaces;
 using WebApplication1.Core.Models;
 using WebApplication1.Infrastructure.Configuration;
+using WebApplication1.Infrastructure.ExternalApis;
 
 namespace WebApplication1.Core.Commands
 {
@@ -39,20 +40,17 @@ namespace WebApplication1.Core.Commands
             "Não foi possível processar esse comando."
         };
 
-        private readonly IBusinessApiClient _businessApiClient;
+        private readonly WebServiceSettings _wsSettings;
         private readonly AdminSettings _adminSettings;
-        private readonly BusinessApiSettings _businessApiSettings;
         private readonly IHostEnvironment _hostEnvironment;
 
         public AdminCommandHandler(
-            IBusinessApiClient businessApiClient,
+            IOptions<WebServiceSettings> wsOptions,
             IOptions<AdminSettings> adminOptions,
-            IOptions<BusinessApiSettings> businessApiOptions,
             IHostEnvironment hostEnvironment)
         {
-            _businessApiClient = businessApiClient;
+            _wsSettings = wsOptions.Value;
             _adminSettings = adminOptions.Value;
-            _businessApiSettings = businessApiOptions.Value;
             _hostEnvironment = hostEnvironment;
         }
 
@@ -131,21 +129,17 @@ namespace WebApplication1.Core.Commands
         private async Task<string> BuildPingReplyAsync()
         {
             var sw = Stopwatch.StartNew();
-            bool available = await _businessApiClient.IsAvailableAsync();
+            bool available = await WebServiceUtils.TestConnectivityAsync(null, _wsSettings.BaseUrl);
             sw.Stop();
 
             string status = available ? "UP" : "DOWN";
-            string mode = _businessApiSettings.IsStubMode ? "STUB" : "REAL";
-            string baseUrl = string.IsNullOrWhiteSpace(_businessApiSettings.BaseUrl)
-                ? "(não definido)"
-                : _businessApiSettings.BaseUrl;
-            string path = string.IsNullOrWhiteSpace(_businessApiSettings.AttendancePath)
-                ? "/api/attendance"
-                : _businessApiSettings.AttendancePath;
+            string baseUrl = string.IsNullOrWhiteSpace(_wsSettings.BaseUrl)
+                ? "(não definido - usando default)"
+                : _wsSettings.BaseUrl;
 
             return string.Join("\n", new[]
             {
-                "🧪 *Relatório técnico — Admin Ping*",
+                "🧪 *Relatório técnico — WebService Ping*",
                 "",
                 "*Resultado*",
                 $"• Resultado: {(available ? "✅ OK" : "❌ FALHA")}",
@@ -154,16 +148,12 @@ namespace WebApplication1.Core.Commands
                 "",
                 "*Ambiente*",
                 $"• Ambiente: {_hostEnvironment.EnvironmentName}",
-                $"• Modo BusinessApi: {mode}",
                 "",
                 "*Endpoint*",
                 $"• BaseUrl: {baseUrl}",
-                $"• AttendancePath: {path}",
                 "",
-                "*Segurança e Resiliência*",
-                $"• Security configured: {_businessApiSettings.HasServiceSecurity}",
-                $"• Timeout: {_businessApiSettings.TimeoutSeconds}s",
-                $"• MaxRetries: {_businessApiSettings.MaxRetries}",
+                "*Segurança*",
+                $"• Timeout: {_wsSettings.TimeoutSeconds}s",
                 "",
                 "*Timestamp*",
                 $"• UTC: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}"
@@ -172,13 +162,9 @@ namespace WebApplication1.Core.Commands
 
         private string BuildConfigReply()
         {
-            string mode = _businessApiSettings.IsStubMode ? "STUB" : "REAL";
-            string baseUrl = string.IsNullOrWhiteSpace(_businessApiSettings.BaseUrl)
-                ? "(não definido)"
-                : _businessApiSettings.BaseUrl;
-            string path = string.IsNullOrWhiteSpace(_businessApiSettings.AttendancePath)
-                ? "/api/attendance"
-                : _businessApiSettings.AttendancePath;
+            string baseUrl = string.IsNullOrWhiteSpace(_wsSettings.BaseUrl)
+                ? "(não definido - usando default)"
+                : _wsSettings.BaseUrl;
 
             return string.Join("\n", new[]
             {
@@ -187,10 +173,8 @@ namespace WebApplication1.Core.Commands
                 "*Ambiente*",
                 $"• Ambiente: {_hostEnvironment.EnvironmentName}",
                 "",
-                "*BusinessApi*",
-                $"• BusinessApi modo: {mode}",
-                $"• BusinessApi BaseUrl: {baseUrl}",
-                $"• BusinessApi AttendancePath: {path}",
+                "*WebService (WCF)*",
+                $"• BaseUrl: {baseUrl}",
                 "",
                 "🔐 Segredos não são mostrados por segurança.",
                 "💡 Formato da pass: adminDDMMYYYY."
@@ -205,11 +189,11 @@ namespace WebApplication1.Core.Commands
                 "",
                 "*Diagnóstico*",
                 "• adminPing",
-                "  └ testa a ligação ao BusinessApi",
+                "  └ testa a ligação ao WebService",
                 "",
                 "*Configuração*",
                 "• adminConfig",
-                "  └ mostra ambiente, modo e endpoint atual",
+                "  └ mostra ambiente e endpoint atual",
                 "",
                 "*Reautenticação*",
                 "• Este menu dá acesso a *1 ação*.",
