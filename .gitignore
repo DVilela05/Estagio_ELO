@@ -1,0 +1,122 @@
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Visual Studio / Visual Studio Code
+.vs/
+.vscode/
+*.code-workspace
+*.user
+*.VC.db
+*.opendb
+
+# Build artifacts
+bin/
+obj/
+out/
+dist/
+*.dll
+*.exe
+*.pdb
+*.so
+*.dylib
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Aa]rtifacts/
+[Bb]uild/
+[Bb]uildResults/
+
+# Test Results
+TestResults/
+*.trx
+*.coverage
+coverage/
+*.opencover.xml
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+appsettings.local.json
+appsettings.*.local.json
+
+# User Secrets (se não quiser commitar)
+# Descomenta se usares secrets file-based em vez de dotnet user-secrets
+# */Properties/launchSettings.json
+
+# Log files
+logs/
+*.log
+npm-debug.log*
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+*.sublime-workspace
+*.sublime-project
+.vscode/settings.json
+
+# Dependencies
+node_modules/
+packages/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# OS temp
+$RECYCLE.BIN/
+.Trash*/
+
+# macOS
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+[Dd]esktop.ini
+
+# Git
+.git/
+.gitmodules
+
+# SSH keys (nunca commitar!)
+*.pem
+*.key
+id_rsa*
+known_hosts
+
+# Database files (se usares SQLite localmente)
+*.db
+*.db-shm
+*.db-wal
+
+# Certificates (se usares SSL localmente)
+*.crt
+*.cer
+*.pfx
+*.p12
+
+# API credentials/tokens (não commitar nunca!)
+secrets.json
+.secrets/
+credentials.json

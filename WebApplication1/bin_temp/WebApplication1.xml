@@ -1,0 +1,1061 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>WebApplication1</name>
+    </assembly>
+    <members>
+        <member name="T:WebApplication1.Api.Controllers.HealthController">
+            <summary>
+            Health check endpoint — verifica se a aplicação está viva.
+            
+            Usado por:
+              - Load balancers (para saber se podem enviar tráfego)
+              - Sistemas de monitorização (para alertar se a app caiu)
+              - Deploys automatizados (para confirmar que a app arrancou)
+            
+            Rota: GET /health
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Api.Controllers.HealthController.GetHealth">
+            <summary>
+            Verifica se a aplicação está viva e pronta para receber pedidos.
+            </summary>
+            <returns>200 OK com informação básica do estado</returns>
+            <response code="200">Aplicação está saudável</response>
+            <response code="429">Demasiados pedidos de health check</response>
+        </member>
+        <member name="T:WebApplication1.Api.Controllers.WebhookController">
+            <summary>
+            Controller de Webhooks — responsável APENAS por receber HTTP e fazer parse.
+            
+            Toda a lógica de negócio vive no MessageProcessingService.
+            Este controller é "magro" — HTTP entry point apenas.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Api.Controllers.WebhookController.VerifyWebhook(System.String,System.String,System.String)">
+            <summary>
+            GET — Verificação do Webhook WhatsApp (handshake com a Meta).
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Api.Controllers.WebhookController.ReceiveWhatsAppMessage">
+            <summary>
+            POST — Receber mensagens do WhatsApp.
+            Filtros aplicados: ValidateWhatsAppSignatureFilter → WhatsAppConcurrencyGuardFilter
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Api.Controllers.WebhookController.ReceiveTeamsActivity">
+            <summary>
+            POST — Receber Activities do Microsoft Teams Bot Framework.
+            Filtro aplicado: ValidateTeamsJwtFilter
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Api.Middleware.CorrelationIdMiddleware">
+            <summary>
+            Middleware que adiciona um Correlation ID único a cada pedido HTTP.
+            
+            O Correlation ID é um GUID que:
+              - Aparece em TODOS os logs deste pedido (facilita rastrear erros)
+              - É devolvido no header X-Correlation-ID da resposta
+              - Pode ser propagado para chamadas externas (servidor de negócio, etc.)
+            
+            Exemplo de uso nos logs:
+              [CorrelationId: abc-123] Mensagem recebida de 351...
+              [CorrelationId: abc-123] Comando "presença" acionado
+              [CorrelationId: abc-123] Resposta enviada
+            
+            Se houver erro, procuras por "abc-123" nos logs e vês todo o fluxo.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Api.Middleware.ExceptionHandlingMiddleware">
+            <summary>
+            Middleware global de tratamento de exceções.
+            
+            Se alguma exceção não tratada escapar de um controller,
+            este middleware apanha-a e devolve uma resposta JSON limpa
+            em vez de um stack trace feio (que também é um risco de segurança).
+            
+            Em desenvolvimento mostra a mensagem de erro completa.
+            Em produção mostra apenas "Ocorreu um erro interno."
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Api.Middleware.SecurityHeadersMiddleware">
+            <summary>
+            Middleware que adiciona headers de segurança HTTP a TODAS as respostas.
+            
+            Baseado nas recomendações OWASP (Open Web Application Security Project):
+            https://cheatsheetseries.owasp.org/cheatsheets/DotNet_Security_Cheat_Sheet.html
+            https://owasp.org/www-project-secure-headers/
+            
+            Estes headers protegem contra:
+              - Clickjacking (X-Frame-Options)
+              - MIME type sniffing (X-Content-Type-Options)
+              - Information leakage (Server, X-Powered-By)
+              - Referrer leakage (Referrer-Policy)
+              - Funcionalidades do browser abusáveis (Permissions-Policy)
+            
+            Em produção, adiciona também HSTS para forçar HTTPS.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Api.Middleware.ValidateTeamsJwtFilter">
+            <summary>
+            Filtro de segurança para validar JWTs recebidos no webhook do Teams.
+            
+            Em produção, garante que a Activity foi enviada pelo Bot Framework
+            e que o token foi emitido para o nosso bot (audience = BotId).
+            
+            Em Development, a validação é ignorada para não bloquear o Emulator.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Api.Middleware.ValidateWhatsAppSignatureFilter">
+            <summary>
+            Filtro de segurança que valida a assinatura X-Hub-Signature-256 da Meta.
+            
+            A Meta assina todos os payloads de webhook com o App Secret da tua app.
+            Isto garante que o pedido veio REALMENTE da Meta e não de um atacante.
+            
+            Sem isto, qualquer pessoa que saiba o URL do teu webhook pode enviar
+            payloads falsos e a tua app vai processá-los como se fossem reais.
+            
+            Uso: colocar [ServiceFilter(typeof(ValidateWhatsAppSignatureFilter))]
+                 no método POST do controller.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Api.Middleware.ValidateWhatsAppSignatureFilter.ReadBodyBytesAsync(System.IO.Stream)">
+            <summary>
+            Lê todos os bytes do body do pedido HTTP.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Api.Middleware.ValidateWhatsAppSignatureFilter.ComputeHmacSha256(System.Byte[],System.String)">
+            <summary>
+            Calcula o HMAC-SHA256 de um payload usando o AppSecret como chave.
+            Devolve no formato "sha256=abcdef..." (como a Meta envia).
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Api.Middleware.WhatsAppConcurrencyGuardFilter">
+            <summary>
+            Filtro de pré-processamento para o webhook WhatsApp.
+            Responsável por deduplicação e lock por remetente.
+            
+            Comportamento:
+              - Valida cada mensagem (MessageId + remetente)
+              - Rejeita duplicadas ou de remetentes já em processamento
+              - Guarda MessageIds aceites para o controller processar
+              - Devolve 200 OK imediatamente se tudo for spam/duplicado
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Application.MessageProcessingService">
+            <summary>
+            CORE da aplicação — processa mensagens de QUALQUER plataforma.
+            
+            Este serviço contém TODA a lógica de negócio que é comum a todas
+            as plataformas (WhatsApp, Teams, Telegram, etc.):
+              - Filtro de mensagens antigas (ignora msgs anteriores ao arranque do bot)
+              - Deduplicação de mensagens por MessageId (cache de 5 minutos)
+              - Proteção anti-spam TRIPLA:
+                a) Filtro SentAt + 1s grace: bloqueia msgs com SentAt antes da resposta
+                   (1s compensa arredondamento de segundos do WhatsApp)
+                b) Lock por utilizador: só processa 1 mensagem de cada vez
+                c) Delayed unlock (2s) quando spam detetado — absorve ondas seguintes
+                d) Bypass: confirmação pendente (sim/não) ignora filtro E delayed lock
+              - Fluxo de confirmação (sim/não) com 3 tentativas inválidas
+              - Fluxo de confirmação (sim/não) com tentativas e expiração
+              - Confirmações contextuais (referencia o comando específico)
+              - Variações de mensagens (nunca repete consecutivamente)
+              - Normalização de texto (remoção de emojis, pontuação)
+              - Logging e console output
+            
+            O controller só trata de HTTP (receber JSON, fazer parse) e
+            delega TUDO a este serviço.
+            
+            Para adicionar uma nova plataforma, NÃO precisas de tocar aqui.
+            Basta criar um IMessagingService e um endpoint no controller.
+            </summary>
+        </member>
+        <member name="F:WebApplication1.Application.MessageProcessingService._startupTime">
+            <summary>
+            Momento em que a aplicação arrancou.
+            Mensagens com SentAt anterior a este momento são consideradas "antigas"
+            e são ignoradas — resolve o problema de reprocessar mensagens ao reiniciar.
+            </summary>
+        </member>
+        <member name="F:WebApplication1.Application.MessageProcessingService.POST_RESPONSE_GRACE_SECONDS">
+            <summary>
+            Grace period (em segundos) para o filtro SentAt.
+            1s compensa o arredondamento do WhatsApp (SentAt tem precisão de SEGUNDOS,
+            o bot regista milissegundos — a diferença máxima é ~1s).
+            Ninguém lê uma resposta e escreve outra em menos de 1 segundo.
+            </summary>
+        </member>
+        <member name="F:WebApplication1.Application.MessageProcessingService.DELAYED_UNLOCK_SECONDS">
+            <summary>
+            Segundos que o lock fica ativo APÓS resposta quando spam foi detetado.
+            2s absorve ondas de spam que o WhatsApp entrega nos segundos após a resposta.
+            Usa server-time (DateTime.UtcNow) — fiável, não depende do SentAt do telemóvel.
+            Confirmações (sim/não) cancelam o delay e passam imediatamente.
+            </summary>
+        </member>
+        <member name="F:WebApplication1.Application.MessageProcessingService.CONFIRMATION_EXPIRY_MINUTES">
+            <summary>
+            Minutos até uma confirmação pendente expirar.
+            Se o user não responder sim/não em 5 minutos, a confirmação é removida
+            e a próxima mensagem é tratada como nova (não como tentativa inválida).
+            </summary>
+        </member>
+        <member name="F:WebApplication1.Application.MessageProcessingService.SPAM_COOLDOWN_SECONDS">
+            <summary>
+            [Retrocompatibilidade] Cooldown para IsLateMessage (usado pelos testes).
+            NÃO é usado no fluxo principal.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.ProcessMessageAsync(WebApplication1.Core.Models.IncomingMessage,WebApplication1.Core.Interfaces.IMessagingService)">
+            <summary>
+            Processa uma mensagem genérica (IncomingMessage) de qualquer plataforma.
+            Recebe o IMessagingService correto para enviar respostas de volta.
+            
+            Fluxo:
+            1. Logging e normalização do texto
+            2. Marcar como lida
+            3. Filtro de arranque: msg.SentAt anterior ao arranque do bot → ignorar
+            4. Filtro de spam (SentAt + 1s grace):
+               msg.SentAt ≤ lastResponse + 1s → ignorar (spam do mesmo burst)
+               (bypass: se há confirmação pendente, grace period ignorado)
+            5. Lock por utilizador: aguarda lock curto se já está em processamento
+               (bypass: sim/não com confirmação pendente → força entrada)
+            6. Confirmação expirada (>5 min)? → remover, tratar como nova
+            7. Se há confirmação pendente E é sim/não → processar confirmação
+            8. Se há confirmação pendente E NÃO é sim/não → tentativa inválida (3 max)
+            9. Se é comando válido → pedir confirmação
+            10. Senão → rotear (ajuda / comando desconhecido)
+            11. finally: RecordResponseTime + delayed unlock (2s) ou unlock imediato
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.IsDuplicateMessage(System.String)">
+            <summary>
+            Verifica se uma mensagem já foi processada (dentro da janela de 5 min).
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.IsLateMessage(System.String,System.DateTime)">
+            <summary>
+            Proteção principal anti-spam: verifica se o utilizador está em cooldown.
+            Após o bot responder, TODAS as mensagens são bloqueadas por SPAM_COOLDOWN_SECONDS.
+            Também bloqueia mensagens com SentAt anterior à última resposta (phone timestamp).
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.TryLockUser(System.String)">
+            <summary>
+            Tenta adquirir o lock de processamento para um utilizador.
+            Retorna true se o lock foi adquirido (pode processar).
+            Retorna false se o utilizador já tem uma mensagem em processamento.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.IsUserLocked(System.String)">
+            <summary>
+            Verifica se um utilizador tem uma mensagem em processamento.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.WaitForUserUnlockAsync(System.String,System.TimeSpan)">
+            <summary>
+            Aguarda libertação do lock por um curto período e tenta adquirir de novo.
+            Evita perder mensagens legítimas que chegam durante o delayed unlock anti-spam.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.UnlockUser(System.String)">
+            <summary>
+            Liberta o lock de processamento para um utilizador.
+            Chamado automaticamente no finally após o bot enviar a resposta.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.IncrementSpamCount(System.String)">
+            <summary>
+            Incrementa o contador de mensagens bloqueadas para um utilizador.
+            Chamado por IsLateMessage e TryLockUser quando bloqueiam uma mensagem.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.WasSpamDetected(System.String)">
+            <summary>
+            Verifica se houve spam detectado (mensagens bloqueadas) para um utilizador.
+            Quando true, a resposta do bot deve ser vinculada (reply-to) à mensagem original
+            para que o utilizador veja claramente qual mensagem foi processada.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.GetSpamBlockedCount(System.String)">
+            <summary>
+            Obtém o número de mensagens bloqueadas para um utilizador.
+            Útil para logging e diagnóstico.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.ResetSpamCount(System.String)">
+            <summary>
+            Limpa o contador de spam para um utilizador.
+            Chamado no finally após enviar a resposta.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.RecordResponseTime(System.String)">
+            <summary>
+            Regista o momento em que respondemos a um utilizador.
+            Chamado no finally, ANTES do UnlockUser.
+            Mensagens com SentAt ≤ este momento + grace period serão ignoradas como spam.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.RecordResponseTime(System.String,System.DateTime)">
+            <summary>
+            Overload para testes — permite definir um timestamp específico.
+            Usado para testar o phone-timestamp path sem esperar pelo cooldown.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.GetLastResponseTime(System.String)">
+            <summary>
+            Obtém o timestamp da última resposta ao utilizador.
+            Retorna null se nunca respondemos a este utilizador.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.GetStartupTime">
+            <summary>
+            Obtém o momento em que a aplicação arrancou.
+            Mensagens com SentAt anterior são ignoradas como "antigas".
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.ResetUserState(System.String)">
+            <summary>
+            Limpa todo o estado de um utilizador (lock + timestamp).
+            Útil para testes.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.NormalizeText(System.String)">
+            <summary>
+            Normaliza texto: remove emojis, pontuação, números e espaços extras.
+            Mantém apenas letras e espaços.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.MessageProcessingService.GetNextPrompt(System.String[],System.Collections.Generic.Queue{System.Int32})">
+            <summary>
+            Seleciona a próxima mensagem da lista, evitando repetir as últimas 3.
+            Thread-safe via lock.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Application.WebhookConcurrencyGuard">
+            <summary>
+            Guarda de concorrência para webhooks com controlo de spam por resposta única.
+            
+            Comportamento:
+              1. Primeira mensagem de um remetente: ACEITE, lock ativo
+              2. Mensagens seguintes enquanto lock ativo: REJEITADAS (spam)
+              3. Quando resposta webhook chega: lock libertado
+              4. Próximas mensagens: novo ciclo começa
+            
+            Usa ConcurrentDictionary para operações atómicas (TryAdd/TryRemove)
+            e IMemoryCache para expiração automática com fallback de segurança.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.WebhookConcurrencyGuard.TryRegisterMessageId(System.String)">
+            <summary>
+            Verifica se um MessageId foi visto. Retorna false se novo, true se duplicado.
+            TTL: 5 minutos.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.WebhookConcurrencyGuard.TryAcquireSenderLock(System.String)">
+            <summary>
+            Tenta adquirir lock de processamento para um remetente.
+            Retorna true se lock foi adquirido, false se remetente já em processamento.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Application.WebhookConcurrencyGuard.ReleaseSenderLock(System.String)">
+            <summary>
+            Liberta o lock de um remetente após resposta webhook recebida.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Commands.CommandRouter">
+            <summary>
+            Router de comandos — recebe uma mensagem e encontra o handler correto.
+            
+            Fluxo:
+              1. Percorre todos os ICommandHandler registados
+              2. O primeiro que responder CanHandle(msg) == true é executado
+              3. Se nenhum corresponder, devolve uma mensagem padrão
+                 a sugerir que escreva "ajuda"
+            
+            Não precisa de ser alterado quando se adicionam novos comandos —
+            basta registar o novo ICommandHandler na DI e ele é apanhado
+            automaticamente.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Commands.CommandRouter.IsValidCommand(WebApplication1.Core.Models.IncomingMessage)">
+            <summary>
+            Verifica se existe algum handler que aceite a mensagem.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Commands.CommandRouter.TryGetMatchedHandler(WebApplication1.Core.Models.IncomingMessage,WebApplication1.Core.Commands.ICommandHandler@)">
+            <summary>
+            Tenta obter o handler que aceita a mensagem.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Commands.CommandRouter.RouteAsync(WebApplication1.Core.Models.IncomingMessage)">
+            <summary>
+            Processa uma mensagem e devolve o texto de resposta.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Commands.HelpCommandHandler">
+            <summary>
+            Comando AJUDA — lista todos os comandos disponíveis.
+            
+            Ativado por: "ajuda", "help", "?", "menu" ou "commands"
+            Responde com a lista formatada de todos os comandos registados.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Commands.HelpCommandHandler.#ctor(System.IServiceProvider)">
+            <summary>
+            Usa IServiceProvider para obter os handlers só quando necessário,
+            evitando a dependência circular (HelpCommand → IEnumerable → HelpCommand).
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Commands.ICommandHandler">
+            <summary>
+            Interface que TODOS os comandos têm de implementar.
+            
+            Cada comando é uma classe isolada que sabe:
+              - Qual é o seu nome e descrição (para o menu de ajuda)
+              - Se consegue processar uma determinada mensagem (CanHandle)
+              - O que fazer quando é acionado (ExecuteAsync)
+            
+            Para criar um novo comando:
+              1. Cria uma classe que implementa ICommandHandler
+              2. Regista-a no Program.cs
+              3. O CommandRouter apanha-a automaticamente
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Commands.ICommandHandler.CommandName">
+            <summary>
+            Nome do comando (ex: "ajuda", "horário").
+            Usado para identificação nos logs.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Commands.ICommandHandler.Description">
+            <summary>
+            Descrição curta do que o comando faz.
+            Aparece na lista de ajuda.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Commands.ICommandHandler.Triggers">
+            <summary>
+            Palavras-chave que ativam este comando.
+            Usadas pelo menu de ajuda para mostrar ao utilizador.
+            Ex: ["ajuda", "help", "?"]
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Commands.ICommandHandler.CanHandle(WebApplication1.Core.Models.IncomingMessage)">
+            <summary>
+            Verifica se este handler consegue processar a mensagem recebida.
+            Normalmente compara o texto com palavras-chave.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Commands.ICommandHandler.ExecuteAsync(WebApplication1.Core.Models.IncomingMessage)">
+            <summary>
+            Executa o comando e devolve o texto de resposta.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Commands.PresencaCommandHandler">
+            <summary>
+            Comando de PRESENÇAS — valida mensagens de marcação e
+            envia o registo ao servidor de negócio via IBusinessApiClient.
+            
+            Fluxo:
+              1. CanHandle → verifica se a mensagem está na lista aceite
+              2. ExecuteAsync → chama o servidor de negócio
+                 → Sucesso: mensagem de confirmação ao utilizador
+                 → Erro:    mensagem amigável de falha ao utilizador
+            
+            Em modo stub (sem servidor configurado), simula sucesso e
+            devolve confirmação — ideal para desenvolvimento e testes.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Exceptions.InvalidCommandException">
+            <summary>
+            Exceção para quando um comando inválido é recebido.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Exceptions.WebhookVerificationException">
+            <summary>
+            Exceção para quando a assinatura do webhook é inválida (segurança).
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Exceptions.ConfigurationException">
+            <summary>
+            Exceção para quando a configuração está incompleta ou inválida.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Exceptions.MessageProcessingException">
+            <summary>
+            Exceção para quando o processamento de mensagem falha.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Interfaces.IBusinessApiClient">
+            <summary>
+            Interface para chamadas ao servidor de negócio (REST API).
+            
+            O servidor de negócio é responsável por:
+              - Registar presenças na base de dados
+              - Validar colaboradores (futuro)
+              - Consultar informação de utilizadores (futuro)
+            
+            Quando o BaseUrl não está configurado, a implementação opera em
+            modo STUB (simula sucesso). Quando configurado, faz HTTP real.
+            
+            Todas as operações devolvem BusinessApiResult em vez de bool,
+            para que o chamador saiba se foi sucesso, erro, ou stub.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Interfaces.IBusinessApiClient.RegisterAttendanceAsync(System.String,System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Regista uma presença no servidor de negócio.
+            </summary>
+            <param name="userId">Identificador do utilizador (phone / AAD Object ID)</param>
+            <param name="userName">Nome do utilizador (se disponível)</param>
+            <param name="attendanceType">Tipo de marcação ("presente", "falta", etc.)</param>
+            <param name="platform">Plataforma de origem ("WhatsApp", "Teams")</param>
+            <param name="userPhone">Telefone do utilizador, quando disponível</param>
+            <param name="userEmail">Email do utilizador, quando disponível</param>
+            <returns>BusinessApiResult com sucesso/falha e mensagem descritiva</returns>
+        </member>
+        <member name="M:WebApplication1.Core.Interfaces.IBusinessApiClient.GetUserInfoAsync(System.String)">
+            <summary>
+            Obtém informação de um utilizador no servidor de negócio.
+            Útil para validar se o user existe antes de registar presença.
+            </summary>
+            <param name="userId">Identificador do utilizador</param>
+            <returns>BusinessApiResult com dados do utilizador ou erro</returns>
+        </member>
+        <member name="M:WebApplication1.Core.Interfaces.IBusinessApiClient.IsAvailableAsync">
+            <summary>
+            Verifica se o servidor de negócio está acessível.
+            Útil para health checks e diagnóstico.
+            </summary>
+            <returns>True se o servidor respondeu com sucesso</returns>
+        </member>
+        <member name="T:WebApplication1.Core.Interfaces.IMessagingService">
+            <summary>
+            Interface GENÉRICA para qualquer serviço de mensagens.
+            
+            Tanto o WhatsApp como o Teams (ou Slack, etc.) implementam
+            esta mesma interface. O "core" da aplicação só conhece esta
+            interface — não sabe os detalhes de cada plataforma.
+            
+            Para adicionar uma nova plataforma:
+              1. Cria uma classe que implementa IMessagingService na camada Infrastructure
+              2. Regista-a no Program.cs
+              3. Adiciona um endpoint no WebhookController
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Interfaces.IMessagingService.Platform">
+            <summary>
+            Identifica que plataforma este serviço representa.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Interfaces.IMessagingService.MarkAsReadAsync(System.String)">
+            <summary>
+            Marca uma mensagem como lida na plataforma (ex: vistos azuis no WhatsApp).
+            Nem todas as plataformas suportam — retorna false se não suportar.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Interfaces.IMessagingService.SendTextMessageAsync(System.String,System.String,System.String)">
+            <summary>
+            Envia uma mensagem de texto para o destinatário indicado.
+            O formato do "to" depende da plataforma (telefone, email, user ID, etc.).
+            
+            Se replyToMessageId for fornecido, a mensagem é enviada como resposta
+            vinculada (citação) à mensagem original — útil quando há spam e queremos
+            que o utilizador veja claramente qual mensagem foi processada.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Models.BusinessApiResult">
+            <summary>
+            Resultado de uma operação no servidor de negócio.
+            
+            Encapsula sucesso/falha de forma limpa, evitando que o chamador
+            precise de fazer try/catch para saber se a operação correu bem.
+            
+            Uso:
+              var result = await client.RegisterAttendanceAsync(...);
+              if (result.Success) { /* ok */ } else { /* result.ErrorMessage */ }
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.BusinessApiResult.Success">
+            <summary>
+            True se a operação foi bem sucedida.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.BusinessApiResult.Message">
+            <summary>
+            Mensagem descritiva (sucesso ou erro).
+            Em caso de erro, contém a descrição legível para logs.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.BusinessApiResult.ErrorCode">
+            <summary>
+            Código de erro da API (ex: "DUPLICATE", "USER_NOT_FOUND", "TIMEOUT").
+            Null em caso de sucesso.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.BusinessApiResult.IsStub">
+            <summary>
+            True se a operação foi executada em modo stub (sem servidor real).
+            Útil para distinguir nos logs se foi registo real ou simulado.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Models.BusinessApiResult.Ok(System.String,System.Boolean)">
+            <summary>
+            Cria um resultado de sucesso.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Models.BusinessApiResult.Fail(System.String,System.String)">
+            <summary>
+            Cria um resultado de falha.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Models.BusinessApiResult.Timeout">
+            <summary>
+            Cria um resultado de falha por timeout.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Core.Models.BusinessApiResult.ServiceUnavailable">
+            <summary>
+            Cria um resultado de falha por servidor indisponível.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Models.IncomingMessage">
+            <summary>
+            Modelo universal que representa uma mensagem recebida de QUALQUER plataforma.
+            
+            Seja WhatsApp, Teams, Slack, etc. — todas as mensagens são convertidas
+            para este formato antes de serem processadas. Assim:
+              - O "core" da aplicação não sabe (nem precisa de saber) de onde veio a mensagem.
+              - Cada plataforma tem o seu Controller/parser que converte o JSON específico
+                da plataforma para este modelo genérico.
+              - Podes adicionar novas plataformas sem mudar a lógica de processamento.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.MessageId">
+            <summary>
+            ID único da mensagem na plataforma de origem.
+            Ex: "wamid.abc123" no WhatsApp, ou um GUID no Teams.
+            Necessário para funcionalidades como "marcar como lida".
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.From">
+            <summary>
+            Identificador do remetente (número de telefone, email, user ID, etc.).
+            Também é usado como chave anti-spam/estado por utilizador.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.ReplyEndpoint">
+            <summary>
+            Endereço técnico para enviar a resposta.
+            WhatsApp: normalmente igual a From (número).
+            Teams: endpoint do Bot Framework (conversation activities URL).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.UserId">
+            <summary>
+            ID único do utilizador na plataforma (Teams: AAD Object ID, WhatsApp: phone number).
+            Usar para comparar com base de dados e identificar o utilizador.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.UserName">
+            <summary>
+            Nome do utilizador (Teams: display name, WhatsApp: pode não estar disponível).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.UserPhone">
+            <summary>
+            Número de telefone associado ao utilizador (quando disponível, ex: WhatsApp).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.UserEmail">
+            <summary>
+            Email associado ao utilizador (quando disponível, ex: Teams).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.Body">
+            <summary>
+            O texto da mensagem.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.OriginalBody">
+            <summary>
+            Texto original recebido (sem normalização).
+            Útil para comandos como "?" que são removidos na normalização.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.Platform">
+            <summary>
+            De que plataforma veio esta mensagem.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.ReceivedAt">
+            <summary>
+            Quando a mensagem foi recebida pelo nosso servidor.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.SentAt">
+            <summary>
+            Quando a mensagem foi enviada pelo telefone do utilizador (timestamp da plataforma).
+            WhatsApp: campo "timestamp" (Unix epoch seconds).
+            Teams: campo "timestamp" da Activity.
+            Usado para detetar mensagens atrasadas: se SentAt for anterior à última resposta do bot, ignorar.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.HasLocation">
+            <summary>
+            Indica se a mensagem contém uma localização (pin/GPS) enviada pelo utilizador.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.Latitude">
+            <summary>
+            Latitude da localização enviada (quando HasLocation=true).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.Longitude">
+            <summary>
+            Longitude da localização enviada (quando HasLocation=true).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.LocationName">
+            <summary>
+            Nome/label da localização (se a plataforma fornecer).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.LocationAddress">
+            <summary>
+            Endereço textual da localização (se a plataforma fornecer).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Core.Models.IncomingMessage.FormattedTime">
+            <summary>
+            Timestamp formatado para exibição nos logs.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Core.Models.MessagePlatform">
+            <summary>
+            Representa a PLATAFORMA de onde veio a mensagem.
+            Para adicionar uma nova plataforma, basta adicionar aqui.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Configuration.BusinessApiSettings">
+            <summary>
+            Configuração do servidor de negócio (REST API).
+            
+            Mapeado a partir da secção "BusinessApi" do appsettings.json.
+            
+            Quando BaseUrl está vazio ou não configurado, o BusinessApiClient
+            opera em modo STUB (simula respostas sem chamar servidor real).
+            
+            Para ativar a comunicação real com o servidor:
+              1. Configura o BaseUrl no appsettings.json ou User Secrets
+              2. O BusinessApiClient começa automaticamente a fazer HTTP real
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Configuration.BusinessApiSettings.BaseUrl">
+            <summary>
+            URL base do servidor de negócio.
+            Ex: "https://api-negocio.empresa.pt" ou "http://localhost:5100"
+            
+            Se vazio/null → modo stub (não faz HTTP real).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Configuration.BusinessApiSettings.TimeoutSeconds">
+            <summary>
+            Timeout em segundos para chamadas ao servidor de negócio.
+            Default: 30 segundos.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Configuration.BusinessApiSettings.MaxRetries">
+            <summary>
+            Número de retries automáticos em caso de erro transitório.
+            Default: 3 retries (com backoff exponencial).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Configuration.BusinessApiSettings.IsStubMode">
+            <summary>
+            True se o modo stub está ativo (BaseUrl não configurado).
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Configuration.ConfigurationValidator">
+            <summary>
+            Valida se a configuração do WhatsApp e Teams foi carregada corretamente.
+            Falha rápido se algo obrigatório está em falta.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Configuration.TeamsSettings">
+            <summary>
+            Classe que mapeia a secção "Teams" do appsettings.json + User Secrets.
+            Tokens sensíveis (ClientSecret) ficam nos User Secrets.
+            Configuração não-sensível (BotId, TenantId) fica no appsettings.json.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Configuration.WhatsAppSettings">
+            <summary>
+            Classe que mapeia a secção "WhatsApp" do appsettings.json + User Secrets.
+            Tokens sensíveis (AccessToken, AppSecret) ficam nos User Secrets.
+            Configuração não-sensível (VerifyToken, PhoneNumberId) fica no appsettings.json.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.ExternalApis.BusinessApiClient">
+            <summary>
+            Cliente HTTP para o servidor de negócio (REST API).
+            
+            Dois modos de operação:
+              1. STUB (BaseUrl não configurado) — simula sucesso, para dev/testes
+              2. REAL (BaseUrl configurado) — faz HTTP POST/GET ao servidor
+            
+            O modo é determinado automaticamente pela configuração:
+              - appsettings.json → BusinessApi:BaseUrl
+              - Se vazio → stub
+              - Se preenchido → HTTP real
+            
+            Registado com HttpClient gerido + Polly retry para erros transitórios.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.ExternalApis.BusinessApiClient.RegisterAttendanceAsync(System.String,System.String,System.String,System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:WebApplication1.Infrastructure.ExternalApis.BusinessApiClient.GetUserInfoAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:WebApplication1.Infrastructure.ExternalApis.BusinessApiClient.IsAvailableAsync">
+            <inheritdoc />
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Logging.ConsoleLogger">
+            <summary>
+            Classe utilitária para escrever logs bonitos e coloridos na consola.
+            Está separada porque não tem nada a ver com lógica de negócio —
+            é apenas formatação visual.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Logging.ConsoleLogger.GetDisplayName(WebApplication1.Core.Models.IncomingMessage)">
+            <summary>
+            Retorna um nome legível para o remetente.
+            Teams: UserName (ou UserId se nome vazio). WhatsApp: número de telefone (From).
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Logging.ConsoleLogger.PrintReplySent(WebApplication1.Core.Models.IncomingMessage,System.Boolean)">
+            <summary>
+            Overload que aceita IncomingMessage e mostra o nome legível em vez do endpoint.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.MessagingServiceFactory">
+            <summary>
+            Fábrica que permite ter VÁRIAS plataformas a funcionar ao mesmo tempo.
+            
+            Problema original: o .NET só permite registar UMA implementação por interface.
+            Se registasses WhatsAppService e TeamsService como IMessagingService,
+            a segunda sobrepunha a primeira.
+            
+            Solução: esta fábrica guarda TODAS as implementações registadas
+            e devolve a correta quando pedimos por plataforma.
+            
+            Uso: 
+              var whatsapp = factory.GetService(MessagePlatform.WhatsApp);
+              var teams = factory.GetService(MessagePlatform.Teams);
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsActivity">
+            <summary>
+            Representa uma Activity do Microsoft Bot Framework.
+            Este é o formato JSON que o Teams envia para o webhook do bot.
+            
+            Documentação: https://docs.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-api-reference
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Type">
+            <summary>
+            Tipo de atividade (message, conversationUpdate, etc.).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Id">
+            <summary>
+            ID único da atividade.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Timestamp">
+            <summary>
+            Timestamp quando a atividade foi criada.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.ServiceUrl">
+            <summary>
+            URL do serviço que processa a atividade.
+            Necessário para enviar respostas (ex: https://smba.trafficmanager.net/emea/).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.ChannelId">
+            <summary>
+            ID do canal (msteams, directline, etc.).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.From">
+            <summary>
+            Informação sobre o remetente da mensagem.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Conversation">
+            <summary>
+            Informação sobre a conversa.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Recipient">
+            <summary>
+            Informação sobre o destinatário (o bot).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Text">
+            <summary>
+            Texto da mensagem.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Attachments">
+            <summary>
+            Attachments da Activity (ex: cartões, localização, etc.).
+            Mantido como JsonElement para suportar variações de payload do Teams.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Entities">
+            <summary>
+            Entities da Activity (ex: Place/GeoCoordinates).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Name">
+            <summary>
+            Nome do evento (ex: application/vnd.microsoft.readReceipt).
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.Value">
+            <summary>
+            Payload de valor para eventos do Teams.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.ChannelData">
+            <summary>
+            Dados específicos do canal Teams.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsActivity.ReplyToId">
+            <summary>
+            ID da atividade à qual esta é uma resposta (se aplicável).
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsChannelAccount">
+            <summary>
+            Representa uma conta de utilizador ou bot no Teams.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsConversationAccount">
+            <summary>
+            Representa uma conversa no Teams.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsChannelData">
+            <summary>
+            Dados específicos do canal Teams.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsTenantInfo">
+            <summary>
+            Informação sobre o tenant do Teams.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsReplyPayload">
+            <summary>
+            Estrutura para enviar mensagens de resposta via Bot Framework API.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsReadReceiptValue">
+            <summary>
+            Payload do evento de read receipt no Teams.
+            </summary>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.TeamsService">
+            <summary>
+            Implementação do IMessagingService para o Microsoft Teams Bot Framework.
+            
+            Toda a lógica ESPECÍFICA do Teams fica aqui:
+            - Autenticação OAuth2 com o Azure AD
+            - Envio de mensagens via Bot Framework REST API
+            - Cache de tokens de acesso (expira a cada ~1h)
+            
+            Funciona exatamente como o WhatsAppService, mas com a API do Teams.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.TeamsService.Platform">
+            <inheritdoc />
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.GetAccessTokenAsync">
+            <summary>
+            Obtém um access token OAuth2 para autenticar pedidos ao Bot Framework.
+            Usa cache interno — só pede um novo token quando o anterior expira.
+            Thread-safe via SemaphoreSlim.
+            
+            Se o BotId ou ClientSecret não estiverem configurados (modo dev/Emulator),
+            retorna null e o pedido é enviado sem autenticação.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.InvalidateCachedToken">
+            <summary>
+            Invalida o token em cache para forçar renovação no próximo envio.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.GetAccessTokenForTenantAsync(System.String)">
+            <summary>
+            Obtém um token sem usar cache para um tenant específico.
+            Usado como fallback quando a configuração está com tenant "common"
+            e o Bot Framework devolve 401.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.ResolveConnectorTenant(System.String)">
+            <summary>
+            Resolve o tenant para obter token OAuth2.
+            Regras:
+            - Se vazio, usa "botframework.com" (compatibilidade).
+            - Se vier GUID (tenant Entra da app), usa o próprio GUID.
+            - Se vier alias válido (common/organizations/botframework.com), usa-o.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.SendWithBearerAsync(System.String,System.String,System.String)">
+            <summary>
+            Envia uma mensagem para o endpoint do Bot Framework com bearer token opcional.
+            </summary>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.MarkAsReadAsync(System.String)">
+            <inheritdoc />
+            <remarks>
+            O Teams não tem conceito de "mark as read" como o WhatsApp.
+            Mensagens são automaticamente marcadas quando o bot responde.
+            Retornamos sempre true para manter compatibilidade com a interface.
+            </remarks>
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.TeamsService.SendTextMessageAsync(System.String,System.String,System.String)">
+            <inheritdoc />
+            <remarks>
+            O parâmetro "to" contém o endpoint completo para responder ao activity original:
+            {serviceUrl}/v3/conversations/{conversationId}/activities/{activityId}
+            Este endpoint é construído no WebhookController a partir da Activity recebida.
+            </remarks>
+        </member>
+        <member name="T:WebApplication1.Infrastructure.Messaging.WhatsAppService">
+            <summary>
+            Implementação do IMessagingService para o WhatsApp Business API.
+            
+            Toda a lógica ESPECÍFICA do WhatsApp fica aqui.
+            Para adicionar outra plataforma, cria outro serviço que implementa
+            a mesma interface IMessagingService mas com a lógica dessa plataforma.
+            </summary>
+        </member>
+        <member name="P:WebApplication1.Infrastructure.Messaging.WhatsAppService.Platform">
+            <inheritdoc />
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.WhatsAppService.MarkAsReadAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:WebApplication1.Infrastructure.Messaging.WhatsAppService.SendTextMessageAsync(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+    </members>
+</doc>

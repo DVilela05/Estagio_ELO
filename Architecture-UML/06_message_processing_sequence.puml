@@ -1,0 +1,56 @@
+@startuml message_processing_sequence
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+actor "Utilizador" as u
+participant "WebhookController" as ctrl
+participant "MessageProcessingService" as proc
+participant "IMessagingService" as svc
+participant "CommandRouter" as router
+participant "ICommandHandler" as handler
+
+u -> ctrl : mensagem recebida
+ctrl -> proc : ProcessMessageAsync(msg, svc)
+
+proc -> proc : NormalizeText()
+proc -> svc : MarkAsReadAsync(messageId)
+
+alt WhatsApp e mensagem antiga
+  proc --> ctrl : ignorar
+else spam/backlog (grace)
+  proc --> ctrl : ignorar
+else lock por utilizador
+  proc -> proc : TryLockUser()
+  alt lock falha sem bypass
+    proc --> ctrl : ignorar
+  end
+end
+
+alt confirmacao pendente
+  alt resposta SIM/NAO
+    proc -> router : RouteAsync(msg original)
+    router -> handler : ExecuteAsync()
+  else aguardando localizacao
+    proc -> proc : TryResolveLocation()
+    alt localizacao valida
+      proc -> router : RouteAsync(msg confirmado)
+      router -> handler : ExecuteAsync()
+    else
+      proc -> svc : SendTextMessageAsync(ajuda localizacao)
+    end
+  else tentativa invalida
+    proc -> svc : SendTextMessageAsync(ajuda sim/nao)
+  end
+else sem confirmacao pendente
+  alt comando valido
+    proc -> svc : SendTextMessageAsync(pedido confirmacao)
+  else
+    proc -> router : RouteAsync(msg)
+    router -> handler : ExecuteAsync()
+  end
+end
+
+proc -> svc : SendTextMessageAsync(resposta)
+proc -> proc : RecordResponseTime() / UnlockUser()
+@enduml

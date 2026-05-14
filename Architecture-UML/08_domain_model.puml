@@ -1,0 +1,49 @@
+@startuml domain_model
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Segoe UI
+skinparam class {
+    BackgroundColor #F8FAFC
+    ArrowColor #334155
+    BorderColor #94A3B8
+}
+
+title Modelo de Domínio (Entidades Core)
+
+class "Utilizador" as User <<Entity>> {
+  + Identificador (Telefone/ID)
+  + Nome
+}
+
+class "Mensagem Recebida" as IncomingMessage <<ValueObject>> {
+  + MessageId
+  + TextoOriginal
+  + Plataforma (WhatsApp/Teams)
+  + DataEnvio
+  + LocalizacaoGPS
+}
+
+class "Comando de Bot" as Command <<DomainService>> {
+  + NomeComando
+  + RegrasValidacao
+  + Executar()
+}
+
+class "Confirmação Pendente" as PendingConfirmation <<State>> {
+  + ComandoAlvo
+  + DataCriacao
+  + AguardaLocalizacao : booleano
+  + TentativasInvalidas : int
+}
+
+class "Serviço Central (WCF)" as CoreSystem <<External>> {
+  + RegistarPresenca(dadosBase64)
+}
+
+User "1" --> "0..*" IncomingMessage : envia
+IncomingMessage "1" --> "0..1" Command : despoleta
+IncomingMessage "1" -- "0..1" PendingConfirmation : pertence a
+PendingConfirmation "0..1" --> "1" Command : retoma execução
+Command ..> CoreSystem : comunica estado (ex: presenças)
+
+@enduml

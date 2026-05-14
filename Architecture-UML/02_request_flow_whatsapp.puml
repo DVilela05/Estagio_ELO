@@ -1,0 +1,39 @@
+@startuml request_flow_whatsapp
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+actor "Utilizador" as u
+participant "Meta\nWhatsApp Cloud" as meta
+participant "ValidateWhatsApp\nSignatureFilter" as sig
+participant "WhatsAppConcurrency\nGuardFilter" as cg
+participant "WebhookController\nPOST /api/webhook/whatsapp" as ctrl
+participant "MessageProcessingService" as proc
+participant "CommandRouter" as router
+participant "PresencaCommandHandler" as pres
+participant "BusinessApiClient" as biz
+participant "WhatsAppService" as wa
+
+u -> meta : envia mensagem
+meta -> sig : webhook POST
+sig -> cg : validar X-Hub-Signature-256
+sig --> meta : 401 (se inválido)
+cg -> ctrl : dedup + lock por remetente
+cg --> meta : 200 (se rejeitado)
+
+alt mensagem aceite
+  ctrl -> proc : SafeProcessMessageAsync(msg)
+  proc -> wa : MarkAsReadAsync()
+  proc -> router : RouteAsync / confirmação
+  alt comando presença confirmado + PIN
+    router -> pres : ExecuteAsync()
+    pres -> biz : RegisterAttendanceAsync()
+    biz --> pres : sucesso/erro
+  end
+  proc -> wa : SendTextMessageAsync(reply)
+end
+
+ctrl --> meta : HTTP 200 OK
+meta --> u : entrega resposta do bot
+
+@enduml

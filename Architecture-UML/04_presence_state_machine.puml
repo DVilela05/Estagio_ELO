@@ -1,0 +1,28 @@
+@startuml presence_state_machine
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Segoe UI
+
+[*] --> Idle
+
+Idle --> AwaitingYesNo : comando presença recebido
+
+AwaitingYesNo --> Cancelled : resposta = NÃO
+AwaitingYesNo --> Cancelled : 3 tentativas inválidas
+AwaitingYesNo --> AwaitingLocationPin : resposta = SIM
+
+AwaitingLocationPin --> Completed : localização válida (PIN)
+AwaitingLocationPin --> AwaitingLocationPin : sem PIN / localização inválida
+AwaitingLocationPin --> Cancelled : timeout da janela de PIN
+
+Completed --> [*]
+Cancelled --> [*]
+
+note right of AwaitingLocationPin
+Regras atuais:
+- Presença só conclui com PIN
+- Web/PC sem PIN -> não conclui
+- Estado expira por timeout
+end note
+
+@enduml
