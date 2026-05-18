@@ -129,6 +129,7 @@ builder.Services.Configure<AdminSettings>(
 builder.Services.AddScoped<ICommandHandler, HelpCommandHandler>();
 builder.Services.AddScoped<ICommandHandler, PresencaCommandHandler>();
 builder.Services.AddScoped<ICommandHandler, AdminCommandHandler>();
+builder.Services.AddScoped<ICommandHandler, ListagemMarcacoesCommandHandler>();
 // ↑ Adiciona novos comandos aqui ↑
 builder.Services.AddScoped<CommandRouter>();
 

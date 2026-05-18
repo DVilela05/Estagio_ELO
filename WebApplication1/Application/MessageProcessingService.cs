@@ -569,25 +569,28 @@ namespace WebApplication1.Application
                 commandName = matchedHandler.CommandName;
             }
 
-            // Comandos administrativos não pedem confirmação para não atrasar
-            // operações de suporte técnico.
-            if (commandName.StartsWith("admin", StringComparison.OrdinalIgnoreCase) && matchedHandler != null)
+            // Comandos administrativos, de ajuda ou de listagem de marcações não pedem confirmação
+            bool bypassConfirmation = commandName.StartsWith("admin", StringComparison.OrdinalIgnoreCase)
+                || commandName.Equals("ajuda", StringComparison.OrdinalIgnoreCase)
+                || commandName.Equals("listagem_marcações", StringComparison.OrdinalIgnoreCase);
+
+            if (bypassConfirmation && matchedHandler != null)
             {
-                string adminReply = await matchedHandler.ExecuteAsync(msg);
-                bool adminReplyOk = await SendReplyAsync(
+                string directReply = await matchedHandler.ExecuteAsync(msg);
+                bool directReplyOk = await SendReplyAsync(
                     service,
                     msg,
                     replyAddress,
-                    adminReply,
+                    directReply,
                     replyTo,
                     msg.OriginalBody);
-                responseDelivered = adminReplyOk;
-                ConsoleLogger.PrintReplySent(msg, adminReplyOk);
+                responseDelivered = directReplyOk;
+                ConsoleLogger.PrintReplySent(msg, directReplyOk);
 
                 stopwatch.Stop();
                 _logger.LogInformation(
-                    "✅ Comando admin executado sem confirmação em {ElapsedMs}ms | From={DisplayName} | Status={ReadOk} → {ReplyOk}",
-                    stopwatch.ElapsedMilliseconds, displayName, readOk, adminReplyOk);
+                    "✅ Comando {CommandName} executado sem confirmação em {ElapsedMs}ms | From={DisplayName} | Status={ReadOk} → {ReplyOk}",
+                    commandName, stopwatch.ElapsedMilliseconds, displayName, readOk, directReplyOk);
                 return;
             }
 
