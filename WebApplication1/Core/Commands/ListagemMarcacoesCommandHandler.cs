@@ -364,6 +364,12 @@ namespace WebApplication1.Core.Commands
 
                 string bodyParaEnviar = $"\"{parametro}\"";
 
+                // === PRINT PARA O TERMINAL ===
+                Console.WriteLine("\n=================================================");
+                Console.WriteLine($"[DEBUG LISTAGEM] STRING ANTES DA CODIFICAÇÃO (parametroBruto): {parametroBruto}");
+                Console.WriteLine($"[DEBUG LISTAGEM] A ENVIAR PARA O WEBSERVICE NO BODY: {bodyParaEnviar}");
+                Console.WriteLine("=================================================\n");
+
                 // Chama o método metalm1
                 string rawResponse = await WebServiceUtils.WCFRESTServiceCall(
                     "POST", "metalm1", bodyParaEnviar, _logger, _wsSettings.BaseUrl);
