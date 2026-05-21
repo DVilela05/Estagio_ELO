@@ -386,58 +386,8 @@ namespace WebApplication1.Core.Commands
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Erro ao tentar chamar o Web Service de listagem");
+                return "❌ Ocorreu um erro ao consultar as marcações. Tenta novamente mais tarde.";
             }
-            
-
-            // Enquanto o WCF não está ligado, devolve o Mock
-            return BuildMockMarkingsList(startDate, endDate, state.OriginalMessage, lang);
-        }
-
-        /// <summary>
-        /// Constrói a listagem formatada de marcações mock para exibição.
-        /// </summary>
-        private string BuildMockMarkingsList(DateTime startDate, DateTime endDate, IncomingMessage message, SupportedLanguage? lang)
-        {
-            string userName = string.IsNullOrWhiteSpace(message.UserName) 
-                ? _localizer.Get("Listagem_DefaultUser", lang) 
-                : message.UserName;
-            string periodStr = startDate == endDate 
-                ? startDate.ToString("dd/MM/yyyy") 
-                : $"{startDate:dd/MM/yyyy} a {endDate:dd/MM/yyyy}";
-
-            var lines = new List<string>
-            {
-                _localizer.Get("Listagem_MockTitle", lang),
-                _localizer.Get("Listagem_MockUser", lang, userName),
-                _localizer.Get("Listagem_MockPeriod", lang, periodStr),
-                _localizer.Get("Listagem_MockSeparator", lang),
-                ""
-            };
-
-            for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
-            {
-                string dayName = GetDayOfWeek(date.DayOfWeek, lang);
-                string dateStr = date.ToString("dd/MM/yyyy");
-
-                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    lines.Add(_localizer.Get("Listagem_MockWeekend", lang, dateStr, dayName));
-                }
-                else
-                {
-                    lines.Add(_localizer.Get("Listagem_MockDayHeader", lang, dateStr, dayName));
-                    lines.Add(_localizer.Get("Listagem_MockEntry", lang));
-                    lines.Add(_localizer.Get("Listagem_MockLunchOut", lang));
-                    lines.Add(_localizer.Get("Listagem_MockLunchIn", lang));
-                    lines.Add(_localizer.Get("Listagem_MockExit", lang));
-                }
-                lines.Add("");
-            }
-
-            lines.Add(_localizer.Get("Listagem_MockSeparator", lang));
-            lines.Add(_localizer.Get("Listagem_MockNote", lang));
-
-            return string.Join("\n", lines);
         }
 
         /// <summary>
