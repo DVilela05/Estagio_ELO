@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using WebApplication1.Core.Localization;
 using WebApplication1.Core.Models;
 using WebApplication1.Infrastructure.Configuration;
 using WebApplication1.Infrastructure.ExternalApis;
@@ -21,6 +22,7 @@ namespace WebApplication1.Core.Commands
     {
         private readonly WebServiceSettings _wsSettings;
         private readonly ILogger<ListagemMarcacoesCommandHandler> _logger;
+        private readonly IBotLocalizer _localizer;
 
         // Estado pendente por utilizador para reter a transição do fluxo
         private static readonly ConcurrentDictionary<string, PendingPeriodState> _pendingPeriods = new(StringComparer.OrdinalIgnoreCase);
@@ -28,17 +30,8 @@ namespace WebApplication1.Core.Commands
         // Tempo limite de expiração do estado pendente (5 minutos)
         private static readonly TimeSpan _pendingStateExpiry = TimeSpan.FromMinutes(5);
 
-        // ─── Triggers aceites para iniciar o comando ───────────────────────
-        private static readonly HashSet<string> _acceptedTriggers = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "ver marcações", "ver marcacoes", 
-            "marcações", "marcacoes", 
-            "listagem", "listagem de marcações", "listagem de marcacoes",
-            "listar marcações", "listar marcacoes", 
-            "minhas marcações", "minhas marcacoes",
-            "ver assiduidade", "assiduidade",
-            "listagem assiduidade", "listagem de assiduidade"
-        };
+        // ─── Mapa de triggers → língua (construído a partir dos recursos) ──
+        private readonly Dictionary<string, SupportedLanguage> _triggerMap;
 
         private enum ListagemState
         {
@@ -48,17 +41,20 @@ namespace WebApplication1.Core.Commands
 
         public ListagemMarcacoesCommandHandler(
             IOptions<WebServiceSettings> wsOptions,
-            ILogger<ListagemMarcacoesCommandHandler> logger)
+            ILogger<ListagemMarcacoesCommandHandler> logger,
+            IBotLocalizer localizer)
         {
             _wsSettings = wsOptions.Value;
             _logger = logger;
+            _localizer = localizer;
+            _triggerMap = localizer.GetAllTriggers("Listagem");
         }
 
         public string CommandName => "listagem_marcações";
 
-        public string Description => "Ver as tuas marcações de assiduidade num determinado período (máximo 7 dias)";
+        public string Description => _localizer.Get("Listagem_Description", SupportedLanguage.Portuguese);
 
-        public string[] Triggers => _acceptedTriggers.ToArray();
+        public string[] Triggers => _triggerMap.Keys.ToArray();
 
         private string NormalizeKey(string value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
@@ -79,23 +75,35 @@ namespace WebApplication1.Core.Commands
             }
 
             string text = message.Body.Trim();
-            return _acceptedTriggers.Contains(text);
+            return _triggerMap.ContainsKey(text);
         }
 
         public async Task<string> ExecuteAsync(IncomingMessage message)
         {
             string userId = NormalizeKey(message.From);
 
+            // Detetar a língua pelo trigger usado (se for o trigger inicial)
+            if (_triggerMap.TryGetValue(message.Body.Trim(), out var triggerLang))
+            {
+                message.Language ??= triggerLang;
+            }
+
+            var lang = message.Language;
+
             // Verificar se o utilizador já tem um estado pendente ativo
             if (_pendingPeriods.TryGetValue(userId, out var state))
             {
+                // Usar a língua guardada no estado pendente
+                lang = state.DetectedLanguage ?? lang;
+                message.Language = lang;
+
                 // Limpeza se o estado tiver expirado
                 if (DateTime.UtcNow > state.CreatedAt.Add(_pendingStateExpiry))
                 {
                     _pendingPeriods.TryRemove(userId, out _);
-                    if (!_acceptedTriggers.Contains(message.Body.Trim()))
+                    if (!_triggerMap.ContainsKey(message.Body.Trim()))
                     {
-                        return "⚠️ O pedido anterior expirou. Por favor, escreva *ver marcações* para recomeçar.";
+                        return _localizer.Get("Listagem_Expired", lang);
                     }
                 }
                 else
@@ -103,29 +111,27 @@ namespace WebApplication1.Core.Commands
                     // ─── ETAPA 1: Aguardar Período ────────────────────────────
                     if (state.CurrentState == ListagemState.AwaitingPeriod)
                     {
-                        if (TryExtractPeriod(message.OriginalBody, out DateTime startDate, out DateTime endDate, out string validationError))
+                        if (TryExtractPeriod(message.OriginalBody, lang, out DateTime startDate, out DateTime endDate, out string validationError))
                         {
                             // Transição de estado: datas válidas encontradas
                             state.SelectedStartDate = startDate;
                             state.SelectedEndDate = endDate;
+                            state.PeriodInput = message.OriginalBody; // Guardar o texto exato (OriginalBody)
                             state.CurrentState = ListagemState.AwaitingConfirmation;
 
-                            string periodDesc = startDate == endDate
-                                ? $"para a data de *{startDate:dd/MM/yyyy}*"
-                                : $"para o período de *{startDate:dd/MM/yyyy} a {endDate:dd/MM/yyyy}*";
-
-                            return $"Confirmas que pretendes ver a listagem de marcações {periodDesc}? (sim/não)";
+                            if (startDate == endDate)
+                            {
+                                return _localizer.Get("Listagem_ConfirmSingle", lang, startDate.ToString("dd/MM/yyyy"));
+                            }
+                            else
+                            {
+                                return _localizer.Get("Listagem_ConfirmRange", lang, startDate.ToString("dd/MM/yyyy"), endDate.ToString("dd/MM/yyyy"));
+                            }
                         }
                         else
                         {
                             // A extração ou validação falhou. Solicita novamente com exemplos
-                            return $"{validationError}\n\nPor favor, indica uma data específica ou um período de análise (máximo 7 dias).\n" +
-                                   "Exemplos:\n" +
-                                   "• *10/10/2025*\n" +
-                                   "• *01/10/2025 a 07/10/2025*\n" +
-                                   "• *hoje*\n" +
-                                   "• *ontem*\n\n" +
-                                   "💡 _Dica: Podes escrever uma frase natural, ex: 'quero ver o dia 10/10/2025' ou 'mostra de ontem a hoje'._";
+                            return $"{validationError}{_localizer.Get("Listagem_DateRetryHelp", lang)}";
                         }
                     }
 
@@ -134,17 +140,17 @@ namespace WebApplication1.Core.Commands
                     {
                         string body = message.Body.Trim().ToLowerInvariant();
 
-                        if (body == "sim" || body == "s")
+                        if (_localizer.IsYes(body))
                         {
                             // Sucesso! Remover o estado pendente e processar a listagem
                             _pendingPeriods.TryRemove(userId, out _);
-                            return await ProcessListagemAsync(state.SelectedStartDate, state.SelectedEndDate, message);
+                            return await ProcessListagemAsync(state, message, lang);
                         }
                         else
                         {
                             // Qualquer resposta diferente de SIM cancela o fluxo
                             _pendingPeriods.TryRemove(userId, out _);
-                            return "❌ Pedido de listagem cancelado. Se precisares de ajuda, escreve *ajuda*.";
+                            return _localizer.Get("Listagem_Cancelled", lang);
                         }
                     }
                 }
@@ -156,19 +162,19 @@ namespace WebApplication1.Core.Commands
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow,
                 OriginalMessage = message,
-                CurrentState = ListagemState.AwaitingPeriod
+                CurrentState = ListagemState.AwaitingPeriod,
+                DetectedLanguage = lang
             };
             _pendingPeriods[userId] = newState;
 
-            return "Qual é o período de análise? Podes indicar uma data (ex: *10/10/2025*, *hoje*, *ontem*) ou um período de análise até 7 dias (ex: *01/10/2025 a 07/10/2025*).\n\n" +
-                   "💡 _Dica: Podes escrever uma frase natural, ex: 'mostra-me as marcações de ontem a hoje' ou 'quero ver o dia 12/10/2025'._";
+            return _localizer.Get("Listagem_AskPeriod", lang);
         }
 
         /// <summary>
         /// Extrai e valida as datas da mensagem, independentemente do texto em redor.
-        /// Suporta auto-swap de limites e atalhos "hoje" e "ontem".
+        /// Suporta auto-swap de limites e atalhos "hoje" e "ontem" em múltiplas línguas.
         /// </summary>
-        private bool TryExtractPeriod(string input, out DateTime startDate, out DateTime endDate, out string validationError)
+        private bool TryExtractPeriod(string input, SupportedLanguage? lang, out DateTime startDate, out DateTime endDate, out string validationError)
         {
             startDate = default;
             endDate = default;
@@ -176,27 +182,34 @@ namespace WebApplication1.Core.Commands
 
             if (string.IsNullOrWhiteSpace(input))
             {
-                validationError = "⚠️ O texto enviado está vazio.";
+                validationError = _localizer.Get("Listagem_EmptyInput", lang);
                 return false;
             }
 
             // Normalizar espaços à volta de barras, traços e pontos
             string cleanedInput = Regex.Replace(input, @"\s*([\/\-\.])\s*", "$1");
 
-            // Procurar por padrões de data e pelas palavras-chave "hoje" e "ontem"
+            // Recolher as palavras-chave de data em todas as línguas suportadas
+            var todayKeywords = GetDateKeywordsAllLanguages("Listagem_DateToday");
+            var yesterdayKeywords = GetDateKeywordsAllLanguages("Listagem_DateYesterday");
+
+            // Procurar por padrões de data e pelas palavras-chave
             string dateRegexPattern = @"\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b";
-            var matches = Regex.Matches(cleanedInput, $"{dateRegexPattern}|\\bhoje\\b|\\bontem\\b", RegexOptions.IgnoreCase);
+            string keywordsPattern = string.Join("|", todayKeywords.Concat(yesterdayKeywords).Select(k => Regex.Escape(k)));
+            string fullPattern = $"{dateRegexPattern}|\\b({keywordsPattern})\\b";
+            
+            var matches = Regex.Matches(cleanedInput, fullPattern, RegexOptions.IgnoreCase);
 
             var extractedDates = new List<DateTime>();
 
             foreach (Match match in matches)
             {
                 string val = match.Value.ToLowerInvariant();
-                if (val == "hoje")
+                if (todayKeywords.Contains(val))
                 {
                     extractedDates.Add(DateTime.Today);
                 }
-                else if (val == "ontem")
+                else if (yesterdayKeywords.Contains(val))
                 {
                     extractedDates.Add(DateTime.Today.AddDays(-1));
                 }
@@ -214,7 +227,7 @@ namespace WebApplication1.Core.Commands
 
             if (extractedDates.Count == 0)
             {
-                validationError = "⚠️ Não consegui encontrar nenhuma data ou palavra-chave de período válida.";
+                validationError = _localizer.Get("Listagem_NoDateFound", lang);
                 return false;
             }
 
@@ -247,12 +260,27 @@ namespace WebApplication1.Core.Commands
                 int totalDays = (endDate - startDate).Days + 1;
                 if (totalDays > 7)
                 {
-                    validationError = $"⚠️ O período de análise ({totalDays} dias) excede o limite máximo de 7 dias.";
+                    validationError = _localizer.Get("Listagem_PeriodTooLong", lang, totalDays);
                     return false;
                 }
 
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Recolhe as palavras-chave de data (hoje/today/aujourd'hui/hoy) de todas as línguas.
+        /// </summary>
+        private HashSet<string> GetDateKeywordsAllLanguages(string key)
+        {
+            var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (SupportedLanguage lang in Enum.GetValues<SupportedLanguage>())
+            {
+                string keyword = _localizer.Get(key, lang);
+                if (!string.IsNullOrWhiteSpace(keyword))
+                    keywords.Add(keyword.ToLowerInvariant());
+            }
+            return keywords;
         }
 
         private bool TryParseSingleDate(string part, out DateTime parsedDate)
@@ -271,11 +299,20 @@ namespace WebApplication1.Core.Commands
                 out parsedDate);
         }
 
-        private async Task<string> ProcessListagemAsync(DateTime startDate, DateTime endDate, IncomingMessage message)
+        private async Task<string> ProcessListagemAsync(PendingPeriodState state, IncomingMessage confirmationMessage, SupportedLanguage? lang)
         {
+            DateTime startDate = state.SelectedStartDate;
+            DateTime endDate = state.SelectedEndDate;
+
             _logger.LogInformation(
                 "📅 A executar consulta de marcações para {UserId}: {StartDate:dd/MM/yyyy} a {EndDate:dd/MM/yyyy}", 
-                message.From, startDate, endDate);
+                state.OriginalMessage.From, startDate, endDate);
+
+            // ─── Criar string de log das mensagens processadas com sucesso ───
+            // Usa sempre o texto exato (OriginalBody) em vez do texto limpo (Body)
+            string mensagensProcessadasLog = $"{state.OriginalMessage.OriginalBody}|{state.PeriodInput}|{confirmationMessage.OriginalBody}";
+
+            _logger.LogInformation("Histórico processado com sucesso: {Log}", mensagensProcessadasLog);
 
             // ─── CHAMADA DO WEB SERVICE WCF (A IMPLEMENTAR / DESCOBRIR) ───
             /*
@@ -321,65 +358,70 @@ namespace WebApplication1.Core.Commands
             }
             */
 
-            return BuildMockMarkingsList(startDate, endDate, message);
+            return BuildMockMarkingsList(startDate, endDate, state.OriginalMessage, lang);
         }
 
         /// <summary>
         /// Constrói a listagem formatada de marcações mock para exibição.
         /// </summary>
-        private string BuildMockMarkingsList(DateTime startDate, DateTime endDate, IncomingMessage message)
+        private string BuildMockMarkingsList(DateTime startDate, DateTime endDate, IncomingMessage message, SupportedLanguage? lang)
         {
-            string userName = string.IsNullOrWhiteSpace(message.UserName) ? "Colaborador" : message.UserName;
+            string userName = string.IsNullOrWhiteSpace(message.UserName) 
+                ? _localizer.Get("Listagem_DefaultUser", lang) 
+                : message.UserName;
             string periodStr = startDate == endDate 
                 ? startDate.ToString("dd/MM/yyyy") 
                 : $"{startDate:dd/MM/yyyy} a {endDate:dd/MM/yyyy}";
 
             var lines = new List<string>
             {
-                "📅 *Listagem de Marcações de Assiduidade*",
-                $"👤 *Colaborador:* {userName}",
-                $"📆 *Período:* {periodStr}",
-                "──────────────────────────",
+                _localizer.Get("Listagem_MockTitle", lang),
+                _localizer.Get("Listagem_MockUser", lang, userName),
+                _localizer.Get("Listagem_MockPeriod", lang, periodStr),
+                _localizer.Get("Listagem_MockSeparator", lang),
                 ""
             };
 
             for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
             {
-                string dayName = GetDayOfWeekPt(date.DayOfWeek);
+                string dayName = GetDayOfWeek(date.DayOfWeek, lang);
+                string dateStr = date.ToString("dd/MM/yyyy");
+
                 if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
                 {
-                    lines.Add($"*• {date:dd/MM/yyyy} ({dayName}):* 🛌 _Fim de semana_");
+                    lines.Add(_localizer.Get("Listagem_MockWeekend", lang, dateStr, dayName));
                 }
                 else
                 {
-                    lines.Add($"*• {date:dd/MM/yyyy} ({dayName}):*");
-                    lines.Add("   📥 08:30 - Entrada (Escritório ELO)");
-                    lines.Add("   📤 12:30 - Saída (Almoço)");
-                    lines.Add("   📥 13:30 - Entrada (Almoço)");
-                    lines.Add("   📤 17:30 - Saída (Fim do Turno)");
+                    lines.Add(_localizer.Get("Listagem_MockDayHeader", lang, dateStr, dayName));
+                    lines.Add(_localizer.Get("Listagem_MockEntry", lang));
+                    lines.Add(_localizer.Get("Listagem_MockLunchOut", lang));
+                    lines.Add(_localizer.Get("Listagem_MockLunchIn", lang));
+                    lines.Add(_localizer.Get("Listagem_MockExit", lang));
                 }
                 lines.Add("");
             }
 
-            lines.Add("──────────────────────────");
-            lines.Add("💡 _Nota: Estes dados são de demonstração enquanto a integração com o Web Service não é ativada._");
+            lines.Add(_localizer.Get("Listagem_MockSeparator", lang));
+            lines.Add(_localizer.Get("Listagem_MockNote", lang));
 
             return string.Join("\n", lines);
         }
 
-        private string GetDayOfWeekPt(DayOfWeek day)
+        private string GetDayOfWeek(DayOfWeek day, SupportedLanguage? lang)
         {
-            return day switch
+            string key = day switch
             {
-                DayOfWeek.Monday => "Segunda-feira",
-                DayOfWeek.Tuesday => "Terça-feira",
-                DayOfWeek.Wednesday => "Quarta-feira",
-                DayOfWeek.Thursday => "Quinta-feira",
-                DayOfWeek.Friday => "Sexta-feira",
-                DayOfWeek.Saturday => "Sábado",
-                DayOfWeek.Sunday => "Domingo",
-                _ => day.ToString()
+                DayOfWeek.Monday => "Day_Monday",
+                DayOfWeek.Tuesday => "Day_Tuesday",
+                DayOfWeek.Wednesday => "Day_Wednesday",
+                DayOfWeek.Thursday => "Day_Thursday",
+                DayOfWeek.Friday => "Day_Friday",
+                DayOfWeek.Saturday => "Day_Saturday",
+                DayOfWeek.Sunday => "Day_Sunday",
+                _ => "Day_Monday"
             };
+            return _localizer.Get(key, lang);
         }
 
         // Classe auxiliar para manter o estado pendente
@@ -391,6 +433,8 @@ namespace WebApplication1.Core.Commands
             public ListagemState CurrentState { get; set; } = ListagemState.AwaitingPeriod;
             public DateTime SelectedStartDate { get; set; }
             public DateTime SelectedEndDate { get; set; }
+            public string PeriodInput { get; set; } = string.Empty;
+            public SupportedLanguage? DetectedLanguage { get; set; }
         }
     }
 }

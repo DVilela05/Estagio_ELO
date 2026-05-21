@@ -8,6 +8,7 @@ using WebApplication1.Api.Middleware;
 using WebApplication1.Application;
 using WebApplication1.Core.Commands;
 using WebApplication1.Core.Interfaces;
+using WebApplication1.Core.Localization;
 using WebApplication1.Infrastructure.Configuration;
 using WebApplication1.Infrastructure.ExternalApis;
 using WebApplication1.Infrastructure.Messaging;
@@ -121,7 +122,15 @@ builder.Services.Configure<AdminSettings>(
 
 
 
-// ─── Sistema de comandos ─────────────────────────────────────────────────────
+// ─── Sistema de localização (i18n) ───────────────────────────────────────────────────
+// Serviços de tradução e deteção de língua.
+// Singleton porque os recursos são estáticos (dicionários read-only).
+builder.Services.AddSingleton<IBotLocalizer, BotLocalizer>();
+builder.Services.AddSingleton<LanguageDetector>();
+builder.Services.AddSingleton<MessagePrompts>();
+builder.Services.AddSingleton<CommandPrompts>();
+
+// ─── Sistema de comandos ───────────────────────────────────────────────────────
 // Cada comando é uma classe isolada. Para adicionar um novo comando:
 //   1. Cria uma classe que implementa ICommandHandler
 //   2. Regista-a aqui com AddScoped<ICommandHandler, NomeDoComando>()

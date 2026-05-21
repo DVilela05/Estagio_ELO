@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using WebApplication1.Core.Commands;
 using WebApplication1.Core.Interfaces;
+using WebApplication1.Core.Localization;
 using WebApplication1.Core.Models;
 using WebApplication1.Infrastructure.Logging;
 
@@ -124,13 +125,22 @@ namespace WebApplication1.Application
         // =====================================================================
         private readonly CommandRouter _commandRouter;
         private readonly ILogger<MessageProcessingService> _logger;
+        private readonly MessagePrompts _messagePrompts;
+        private readonly LanguageDetector _languageDetector;
+        private readonly IBotLocalizer _localizer;
 
         public MessageProcessingService(
             CommandRouter commandRouter,
-            ILogger<MessageProcessingService> logger)
+            ILogger<MessageProcessingService> logger,
+            MessagePrompts messagePrompts,
+            LanguageDetector languageDetector,
+            IBotLocalizer localizer)
         {
             _commandRouter = commandRouter;
             _logger = logger;
+            _messagePrompts = messagePrompts;
+            _languageDetector = languageDetector;
+            _localizer = localizer;
         }
 
         // =====================================================================
@@ -199,8 +209,12 @@ namespace WebApplication1.Application
             // Bypass APENAS para resposta de decisão (sim/não) com confirmação pendente.
             // Mensagens não-sim/não continuam sujeitas ao anti-spam para não consumir
             // tentativas por bursts de teclas (ex.: "l l l l") após um comando.
+            // ─── Deteção de língua ──────────────────────────────────────
+            msg.Language ??= _languageDetector.DetectLanguage(msg);
+            var lang = msg.Language;
+
             bool hasPendingConfirmation = _pendingConfirmations.ContainsKey(msg.From);
-            bool isYesNoReply = MessagePrompts.IsYes(msg.Body) || MessagePrompts.IsNo(msg.Body);
+            bool isYesNoReply = _messagePrompts.IsYes(msg.Body) || _messagePrompts.IsNo(msg.Body);
             bool isPendingLocationReply = hasPendingConfirmation &&
                 _pendingConfirmations.TryGetValue(msg.From, out PendingConfirmation? pendingForBypass) &&
                 pendingForBypass.AwaitingLocation;
@@ -295,7 +309,7 @@ namespace WebApplication1.Application
                     {
                         _pendingConfirmations.TryRemove(msg.From, out _);
 
-                        string finalLocationReply = MessagePrompts.BuildFinalLocationMissingMessage();
+                        string finalLocationReply = _messagePrompts.BuildFinalLocationMissingMessage(lang);
                         bool finalLocationOk = await SendReplyAsync(
                             service,
                             msg,
@@ -355,7 +369,7 @@ namespace WebApplication1.Application
                         };
 
                         string commandReply = await _commandRouter.RouteAsync(confirmedCommandMessage);
-                        string locationSummary = BuildLocationReceivedSummary();
+                        string locationSummary = _localizer.Get("Location_Received", lang);
                         string reply = $"{locationSummary}\n\n{commandReply}";
 
                         bool replyOk = await SendReplyAsync(
@@ -385,7 +399,7 @@ namespace WebApplication1.Application
                         return;
                     }
 
-                    string locationHelp = MessagePrompts.BuildLocationHelp(LOCATION_PIN_WINDOW_SECONDS);
+                    string locationHelp = _messagePrompts.BuildLocationHelp(LOCATION_PIN_WINDOW_SECONDS, lang);
 
                     bool helpOk = await SendReplyAsync(
                         service,
@@ -404,7 +418,7 @@ namespace WebApplication1.Application
                     return;
                 }
 
-                if (MessagePrompts.IsYes(msg.Body))
+                if (_messagePrompts.IsYes(msg.Body))
                 {
                     // TODO: Localização comentada temporariamente para que o "Sim" avance diretamente para o webservice
                     /*
@@ -412,7 +426,7 @@ namespace WebApplication1.Application
                     {
                         pending.AwaitingLocation = true;
                         pending.LocationRequestedAtUtc = DateTime.UtcNow;
-                        string locationPrompt = MessagePrompts.BuildLocationRequestPrompt(LOCATION_PIN_WINDOW_SECONDS);
+                        string locationPrompt = _messagePrompts.BuildLocationRequestPrompt(LOCATION_PIN_WINDOW_SECONDS, lang);
 
                         bool locationPromptOk = await SendReplyAsync(
                             service,
@@ -433,6 +447,10 @@ namespace WebApplication1.Application
                     */
 
                     _pendingConfirmations.TryRemove(msg.From, out _);
+                    
+                    // Guardar o texto exato da confirmação para o handler poder usar no log
+                    pending.OriginalMessage.ConfirmationText = msg.OriginalBody;
+                    
                     string reply = await _commandRouter.RouteAsync(pending.OriginalMessage);
 
                     bool replyOk = await SendReplyAsync(
@@ -451,10 +469,10 @@ namespace WebApplication1.Application
                         stopwatch.ElapsedMilliseconds, displayName, readOk, replyOk);
                     return;
                 }
-                else if (MessagePrompts.IsNo(msg.Body))
+                else if (_messagePrompts.IsNo(msg.Body))
                 {
                     _pendingConfirmations.TryRemove(msg.From, out _);
-                    string reply = $"❌ Ok, *{pendingCommand}* cancelado. Se precisares de ajuda, escreve ajuda.";
+                    string reply = _localizer.Get("Confirmation_Cancelled", lang, pendingCommand);
 
                     bool replyOk = await SendReplyAsync(
                         service,
@@ -487,7 +505,7 @@ namespace WebApplication1.Application
                             "🔄 Confirmação de *{Command}* cancelada após 3 tentativas inválidas — {DisplayName}",
                             pendingCommand, displayName);
 
-                        string finalInvalidReply = MessagePrompts.BuildFinalInvalidConfirmationMessage(pendingCommand);
+                        string finalInvalidReply = _messagePrompts.BuildFinalInvalidConfirmationMessage(pendingCommand, lang);
                         bool finalInvalidOk = await SendReplyAsync(
                             service,
                             msg,
@@ -507,7 +525,7 @@ namespace WebApplication1.Application
                     else
                     {
                         // Mostrar ajuda com tentativas restantes
-                        string helpReply = MessagePrompts.BuildYesNoHelp(pending.InvalidAttempts, pendingCommand);
+                        string helpReply = _messagePrompts.BuildYesNoHelp(pending.InvalidAttempts, pendingCommand, lang);
 
                         bool helpOk = await SendReplyAsync(
                             service,
@@ -533,9 +551,9 @@ namespace WebApplication1.Application
             {
                 string reply;
 
-                if (MessagePrompts.IsYes(msg.Body) || MessagePrompts.IsNo(msg.Body))
+                if (_messagePrompts.IsYes(msg.Body) || _messagePrompts.IsNo(msg.Body))
                 {
-                    reply = MessagePrompts.BuildNoPendingConfirmationMessage();
+                    reply = _messagePrompts.BuildNoPendingConfirmationMessage(lang);
                     _logger.LogWarning("Utilizador {From} enviou '{Body}' sem confirmação pendente", msg.From, msg.Body);
                 }
                 else
@@ -617,7 +635,7 @@ namespace WebApplication1.Application
 
             _pendingConfirmations[msg.From] = confirmation;
 
-            string confirmPrompt = MessagePrompts.BuildConfirmationPrompt(commandName);
+            string confirmPrompt = _messagePrompts.BuildConfirmationPrompt(commandName, lang);
             bool confirmOk = await SendReplyAsync(
                 service,
                 msg,
@@ -961,11 +979,6 @@ namespace WebApplication1.Application
         private static bool IsPresenceCommand(string commandName)
             => commandName.Contains("presen", StringComparison.OrdinalIgnoreCase)
             || commandName.Contains("presença", StringComparison.OrdinalIgnoreCase);
-
-        private static string BuildLocationReceivedSummary()
-        {
-            return "📍 PIN de localização recebido.";
-        }
 
         private static async Task<string?> ResolveLocationAddressForLogAsync(IncomingMessage msg)
         {

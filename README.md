@@ -31,10 +31,8 @@ dotnet user-secrets set "Teams:BotId" "seu_app_id_guid"
 dotnet user-secrets set "Teams:ClientSecret" "seu_client_secret_aqui"
 dotnet user-secrets set "Teams:TenantId" "seu_tenant_guid"
 
-# BusinessApi (modo real - opcional)
-dotnet user-secrets set "BusinessApi:BaseUrl" "http://localhost:5008"
-dotnet user-secrets set "BusinessApi:ServiceToken" "seu_service_token"
-dotnet user-secrets set "BusinessApi:HmacSecret" "seu_hmac_secret"
+# Opcional: WCF Webservice
+# O WCF envia as strings em Base64 diretamente a partir dos handlers.
 ```
 
 Se quiseres usar o webservice real (e nao o modo stub), tambem precisas
@@ -412,9 +410,9 @@ WebApplication1/                          # Onion Architecture
 │   │   └── PresencaCommandHandler.cs     # Handler de presença
 │   ├── Interfaces/
 │   │   ├── IMessagingService.cs          # Interface de messaging
-│   │   └── IBusinessApiClient.cs         # Cliente servidor negócio (dual-mode: stub/real)
+│   │   └── IBotLocalizer.cs              # Contrato para traduções e localização
 │   ├── Models/
-│   │   ├── BusinessApiResult.cs          # ⭐ Resultado da API de negócio (v7.0)
+│   │   ├── SupportedLanguage.cs          # Enumeração de línguas suportadas (PT, EN, FR, ES)
 │   │   ├── IncomingMessage.cs            # Modelo universal (UserId + UserName)
 │   │   └── MessagePlatform.cs            # Enum (WhatsApp, Teams)
 │   └── Exceptions/
@@ -422,7 +420,7 @@ WebApplication1/                          # Onion Architecture
 │
 ├── Infrastructure/                       # 🔴 Camada de Infraestrutura
 │   ├── Configuration/
-│   │   ├── BusinessApiSettings.cs        # ⭐ Config Business API (v7.0)
+│   │   ├── WebServiceSettings.cs         # Configuração WCF API
 │   │   ├── ConfigurationValidator.cs     # Validação pré-startup
 │   │   ├── WhatsAppSettings.cs           # Config WhatsApp
 │   │   └── TeamsSettings.cs              # Config Teams
@@ -432,14 +430,14 @@ WebApplication1/                          # Onion Architecture
 │   │   ├── MessagingServiceFactory.cs    # Factory multi-plataforma
 │   │   └── TeamsActivity.cs              # DTOs Bot Framework Activity
 │   ├── ExternalApis/
-│   │   └── BusinessApiClient.cs          # ⭐ Cliente API de negócio (dual-mode + Polly retry)
+│   │   └── LanguageDetector.cs           # Detetor de língua (indicativo telefone + triggers)
 │   └── Logging/
 │       └── ConsoleLogger.cs              # Logging formatado
 │
 ├── appsettings.json                      # Config pública (WhatsApp + Teams)
 ├── appsettings.Development.json          # Dev-specific
 ├── appsettings.Production.json           # Production (logging restrito)
-└── Program.cs                            # DI + Serilog + Validação + Polly retry + BusinessApi config
+└── Program.cs                            # DI + Serilog + Validação + WCF Config + i18n
 └── WebApplication1.csproj
 
 WebApplication1.Tests/                    # 26 ficheiros de teste (total dinâmico)

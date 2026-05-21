@@ -49,6 +49,22 @@ http://localhost:5197/
 
 ---
 
+## 🌍 Multilíngua (i18n) & Deteção de Língua
+
+O bot suporta 4 línguas nativamente: **Português (PT), Inglês (EN), Francês (FR) e Espanhol (ES)**.
+
+### Como funciona a deteção automática:
+1. **Pelo Trigger:** Se o utilizador escrever "present" o bot assume logo que é inglês.
+2. **Pelo WhatsApp (Indicativo):** Se a mensagem vier do número `+33...`, o bot assume Francês. `+34...` Espanhol, `+44...` ou `+1...` Inglês. O default é Português.
+3. **Fallback:** Se for um comando desconhecido e o bot não souber a língua, ele envia um pequeno menu de ajuda nas 4 línguas.
+
+### Como alterar mensagens ou adicionar línguas:
+Todas as respostas do bot estão guardadas na pasta `Resources/`.
+- Para alterar o texto de uma resposta, basta editar o ficheiro da língua respetiva (ex: `Messages_PT.cs`).
+- **Zero texto no código:** Os Handlers apenas chamam `_localizer.Get("Chave_Da_Mensagem", lang)`.
+
+---
+
 ## ✅ Setup Checklist (completo)
 
 ### 1) WebApplication1 (bot)

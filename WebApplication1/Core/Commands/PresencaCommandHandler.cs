@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using WebApplication1.Core.Localization;
 using WebApplication1.Core.Models;
 using WebApplication1.Infrastructure.Configuration;
 using WebApplication1.Infrastructure.ExternalApis;
@@ -26,6 +27,7 @@ namespace WebApplication1.Core.Commands
     {
         private readonly WebServiceSettings _wsSettings;
         private readonly ILogger<PresencaCommandHandler> _logger;
+        private readonly IBotLocalizer _localizer;
 
         // ─── Política de retry Polly ─────────────────────────────────
         // Retry 3 vezes com backoff exponencial: 1s → 2s → 4s
@@ -44,62 +46,42 @@ namespace WebApplication1.Core.Commands
                             $"[Polly] Retry {tentativa} após {delay.TotalSeconds}s — Razão: {outcome.Exception?.Message ?? "resposta inesperada"}");
                     });
 
-        // ─── Mensagens aceites ───────────────────────────────────────
-        private static readonly HashSet<string> _acceptedMessages = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "presente", "presença", "presenca",
-            "marcar presença", "marcar presenca",
-            "marcação", "marcaçao", "marcacao",
-            "marcação presença", "marcação presenca",
-            "marcacao presença", "marcacao presenca",
-            "cá estou", "ca estou",
-            "estou cá", "estou ca",
-            "cheguei",
-            "present", "attendance",
-            "mark attendance", "check in",
-            "i'm here", "im here",
-            "here", "arrived",
+        // ─── Mapa de triggers → língua (construído a partir dos recursos) ──
+        private readonly Dictionary<string, SupportedLanguage> _triggerMap;
 
-            // ── Descomenta quando necessário ──────────────────────
-            // "falta", "ausente", "marcar falta", "não vou", "nao vou",
-        };
-
-        // ─── Mensagens de resposta ───────────────────────────────────
-        private const string RespostaSucesso =
-            "✅ Presença registada com sucesso!";
-
-        private const string RespostaSucessoStub =
-            "✅ Mensagem de *presença* recebida com sucesso.";
-
-        private const string RespostaErroTimeout =
-            "⏱️ O servidor demorou a responder. A tua presença não foi registada — tenta novamente em alguns minutos.";
-
-        private const string RespostaErroIndisponivel =
-            "🔌 O servidor de registo está temporariamente indisponível. Tenta novamente mais tarde.";
-
-        private const string RespostaErroGenerico =
-            "⚠️ Houve um problema ao registar a presença. A equipa técnica foi notificada. Tenta novamente mais tarde.";
-
-        public PresencaCommandHandler(IOptions<WebServiceSettings> wsOptions, ILogger<PresencaCommandHandler> logger)
+        public PresencaCommandHandler(
+            IOptions<WebServiceSettings> wsOptions,
+            ILogger<PresencaCommandHandler> logger,
+            IBotLocalizer localizer)
         {
             _wsSettings = wsOptions.Value;
             _logger = logger;
+            _localizer = localizer;
+            _triggerMap = localizer.GetAllTriggers("Presence");
         }
 
         public string CommandName => "presença";
 
-        public string Description => "Marcar presença (requer PIN de localização; se o Web/PC não permitir, faz no telemóvel)";
+        public string Description => _localizer.Get("Presence_Description", SupportedLanguage.Portuguese);
 
-        public string[] Triggers => _acceptedMessages.ToArray();
+        public string[] Triggers => _triggerMap.Keys.ToArray();
 
         public bool CanHandle(IncomingMessage message)
         {
             string text = message.Body.Trim();
-            return _acceptedMessages.Contains(text);
+            return _triggerMap.ContainsKey(text);
         }
 
         public async Task<string> ExecuteAsync(IncomingMessage message)
         {
+            // Detetar a língua pelo trigger usado
+            if (_triggerMap.TryGetValue(message.Body.Trim(), out var triggerLang))
+            {
+                message.Language ??= triggerLang;
+            }
+
+            var lang = message.Language;
+
             // TODO: Futuramente, voltar a ativar a validação de localização quando for exigido
             // if (!message.HasLocation || !message.Latitude.HasValue || !message.Longitude.HasValue)
             // {
@@ -125,8 +107,15 @@ namespace WebApplication1.Core.Commands
                 byte[] textBytes = System.Text.Encoding.UTF8.GetBytes(parametroBruto);
                 string parametro = System.Convert.ToBase64String(textBytes);
 
+                // ─── Criar string de log das mensagens processadas com sucesso ───
+                // Como o comando de presença requer confirmação, sabemos que o fluxo foi:
+                // 1. Comando original (exato)
+                // 2. Confirmação (texto exato que o user respondeu, ex: "s", "SIM")
+                string textoConfirmacao = message.ConfirmationText ?? "sim";
+                string mensagensProcessadasLog = $"{message.OriginalBody}|{textoConfirmacao}";
+
                 _logger.LogInformation(
-                    "📱 A chamar metaim1 com parâmetro: {Param}", parametro);
+                    "📱 A chamar metaim1 com parâmetro: {Param}. Histórico: {Log}", parametro, mensagensProcessadasLog);
 
                 // ─── Chamada com Polly retry (backoff exponencial) ────────
                 string rawResponse = await _retryPolicy.ExecuteAsync(async () =>
@@ -167,70 +156,72 @@ namespace WebApplication1.Core.Commands
 
                 if (cleanResponse == "OK|0")
                 {
-                    return RespostaSucesso;
+                    return _localizer.Get("Presence_Success", lang);
                 }
                 else if (cleanResponse == "ERROR|UNKNOWNAPI")
                 {
                     _logger.LogWarning("⚠️ API desconhecida enviada para o WCF ({Response})", response);
-                    return "⚠️ Ocorreu um erro interno (API desconhecida). A equipa técnica foi notificada.";
+                    return _localizer.Get("Presence_ErrorUnknownApi", lang);
                 }
                 else if (cleanResponse == "ERROR|EMAIL_MANDATORY")
                 {
                     _logger.LogWarning("⚠️ E-mail em falta na chamada do Teams ({Response})", response);
-                    return "⚠️ Não foi possível identificar o teu e-mail corporativo. Contacta o suporte para garantir que a tua conta do Teams está bem configurada.";
+                    return _localizer.Get("Presence_ErrorEmailMandatory", lang);
                 }
                 else if (cleanResponse == "ERROR|NUMBER_MESSAGE_MANDATORY")
                 {
                     _logger.LogWarning("⚠️ Número de telefone em falta na chamada do WhatsApp ({Response})", response);
-                    return "⚠️ Não foi possível ler o teu número de telemóvel para associar à tua ficha de colaborador.";
+                    return _localizer.Get("Presence_ErrorNumberMandatory", lang);
                 }
                 else if (cleanResponse == "ERROR|TOKEN_MANDATORY")
                 {
                     _logger.LogWarning("⚠️ Token em falta na chamada WCF ({Response})", response);
-                    return "⚠️ Erro de segurança (Token em falta). Tenta novamente mais tarde.";
+                    return _localizer.Get("Presence_ErrorTokenMandatory", lang);
                 }
                 else if (cleanResponse == "ERROR|INVALID_DATETIME")
                 {
                     _logger.LogWarning("⚠️ Data inválida enviada ao WCF ({Response})", response);
-                    return "⚠️ A data da mensagem não foi compreendida pelo servidor. Tenta enviar a presença novamente.";
+                    return _localizer.Get("Presence_ErrorInvalidDatetime", lang);
                 }
                 else if (cleanResponse.StartsWith("ERROR|LOGINERROR_"))
                 {
                     _logger.LogWarning("⚠️ Erro de validação de colaborador no ELO ({Response})", response);
 
-                    string idType = message.Platform == MessagePlatform.Teams ? "e-mail" : "nº de telefone";
-                    return $"⚠️ Ocorreu um erro ao validar os teus dados. Confirma com os Recursos Humanos se o teu {idType} está corretamente associado à tua ficha. Escreve *help* para mais informações.";
+                    string idType = message.Platform == MessagePlatform.Teams
+                        ? _localizer.Get("Presence_IdType_Email", lang)
+                        : _localizer.Get("Presence_IdType_Phone", lang);
+                    return _localizer.Get("Presence_ErrorLoginError", lang, idType);
                 }
                 else if (cleanResponse == "ERROR|DECODEERROR")
                 {
                     _logger.LogWarning("⚠️ Erro a descodificar Base64 no WCF ({Response})", response);
-                    return "⚠️ Ocorreu um erro na transmissão dos dados. Tenta novamente.";
+                    return _localizer.Get("Presence_ErrorDecodeError", lang);
                 }
                 else if (cleanResponse.StartsWith("ERROR|"))
                 {
                     _logger.LogWarning("⚠️ Erro de negócio inesperado do serviço metaim1: {Response}", response);
-                    return "⚠️ Não foi possível registar a presença. Erro do servidor: " + response;
+                    return _localizer.Get("Presence_ErrorBusinessGeneric", lang, response);
                 }
                 else
                 {
                     _logger.LogWarning("⚠️ Resposta com formato totalmente inesperado do metaim1: {Response}", response);
-                    return "⚠️ Resposta inesperada do servidor: " + response;
+                    return _localizer.Get("Presence_ErrorUnexpectedResponse", lang, response);
                 }
             }
             catch (TaskCanceledException)
             {
                 _logger.LogError("⏱️ Timeout ao chamar metaim1 (após 3 tentativas Polly)");
-                return RespostaErroTimeout;
+                return _localizer.Get("Presence_ErrorTimeout", lang);
             }
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, "🔌 Serviço metaim1 indisponível (após 3 tentativas Polly)");
-                return RespostaErroIndisponivel;
+                return _localizer.Get("Presence_ErrorUnavailable", lang);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Erro inesperado ao chamar metaim1");
-                return RespostaErroGenerico;
+                return _localizer.Get("Presence_ErrorGeneric", lang);
             }
         }
     }

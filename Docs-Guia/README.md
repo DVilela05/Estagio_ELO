@@ -138,7 +138,7 @@ Middlewares são como **guardas** que verificam todas as mensagens antes de cheg
 
 | Ficheiro | O que faz? |
 |---|---|
-| `BusinessApiClient.cs` | O **cliente do servidor de negócio** — envia pedidos HTTP ao servidor real (ou simula em modo stub). Tem retry automático com Polly (tenta 3 vezes se falhar). |
+| `LanguageDetector.cs` | O **detetor de línguas** — responsável por ler as mensagens ou o indicativo do WhatsApp para deduzir a língua falada (PT, EN, ES, FR). |
 
 #### 📁 `Infrastructure/Logging/`
 
@@ -162,8 +162,7 @@ Esta pasta contém **testes automáticos** que verificam se tudo funciona (o tot
 
 | Ficheiro | O que faz? |
 |---|---|
-| `BusinessApiResultTests.cs` | Testa se os **resultados da API** (Ok, Fail, Timeout) são criados corretamente. |
-| `BusinessApiClientTests.cs` | Testa se o **cliente da API** funciona em modo stub e modo real, e se o retry funciona. |
+| `LanguageDetectorTests.cs` | Testa se o detetor de línguas consegue deduzir inglês do prefixo +44 e português de comandos portugueses. |
 | `CommandRouterTests.cs` | Testa se o **carteiro** entrega as mensagens ao comando certo. |
 | `HelpCommandHandlerTests.cs` | Testa se o comando **"ajuda"** responde bem a todas as formas de pedir ajuda. |
 | `PresencaCommandHandlerTests.cs` | Testa se o comando **"presença"** reconhece as 15 formas de dizer "presente". |

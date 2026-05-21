@@ -108,6 +108,19 @@ namespace WebApplication1.Core.Models
         public string? LocationAddress { get; set; }
 
         /// <summary>
+        /// Língua detetada para esta mensagem.
+        /// Determinada pelo indicativo do telefone (WhatsApp) ou pelo conteúdo da mensagem.
+        /// Valor null significa que a língua ainda não foi detetada.
+        /// </summary>
+        public SupportedLanguage? Language { get; set; }
+
+        /// <summary>
+        /// Texto exato que o utilizador escreveu para dar uma confirmação (ex: "s", "SIM", "yes").
+        /// Preenchido pelo MessageProcessingService antes de encaminhar a mensagem final.
+        /// </summary>
+        public string? ConfirmationText { get; set; }
+
+        /// <summary>
         /// Timestamp formatado para exibição nos logs.
         /// </summary>
         public string FormattedTime => ReceivedAt.ToString("dd/MM/yyyy HH:mm:ss");

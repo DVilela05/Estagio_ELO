@@ -1,4 +1,5 @@
 using WebApplication1.Application;
+using WebApplication1.Core.Localization;
 using WebApplication1.Core.Models;
 
 namespace WebApplication1.Core.Commands
@@ -10,7 +11,7 @@ namespace WebApplication1.Core.Commands
     ///   1. Percorre todos os ICommandHandler registados
     ///   2. O primeiro que responder CanHandle(msg) == true é executado
     ///   3. Se nenhum corresponder, devolve uma mensagem padrão
-    ///      a sugerir que escreva "ajuda" (gerida por CommandPrompts)
+    ///      na língua detetada (ou multi-língua se desconhecida)
     /// 
     /// Não precisa de ser alterado quando se adicionam novos comandos —
     /// basta registar o novo ICommandHandler na DI e ele é apanhado
@@ -20,13 +21,16 @@ namespace WebApplication1.Core.Commands
     {
         private readonly IEnumerable<ICommandHandler> _handlers;
         private readonly ILogger<CommandRouter> _logger;
+        private readonly CommandPrompts _commandPrompts;
 
         public CommandRouter(
             IEnumerable<ICommandHandler> handlers,
-            ILogger<CommandRouter> logger)
+            ILogger<CommandRouter> logger,
+            CommandPrompts commandPrompts)
         {
             _handlers = handlers;
             _logger = logger;
+            _commandPrompts = commandPrompts;
         }
 
         /// <summary>
@@ -73,12 +77,18 @@ namespace WebApplication1.Core.Commands
                 }
             }
 
-            // Nenhum comando reconhecido — resposta aleatória
+            // Nenhum comando reconhecido — resposta na língua detetada ou multi-língua
             _logger.LogInformation(
                 "Mensagem de {From} não corresponde a nenhum comando: \"{Body}\"",
                 message.From, message.Body);
 
-            return CommandPrompts.GetNextUnknownMessage();
+            if (message.Language.HasValue)
+            {
+                return _commandPrompts.GetNextUnknownMessage(message.Language);
+            }
+
+            // Língua desconhecida → mensagem multi-língua curta
+            return _commandPrompts.GetMultiLanguageFallback();
         }
     }
 }
