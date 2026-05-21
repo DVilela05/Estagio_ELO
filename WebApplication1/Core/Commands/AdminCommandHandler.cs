@@ -56,7 +56,7 @@ namespace WebApplication1.Core.Commands
 
         public string CommandName => "adminMenu";
 
-        public string Description => "Menu de administração (configuração rápida e ping ao serviço web)";
+        public string GetDescription(SupportedLanguage? language) => "Menu de administração (configuração rápida e ping ao serviço web)";
 
         public string[] Triggers => new[] { "admin", "adminMenu", "adminPing", "adminConfig" };
 

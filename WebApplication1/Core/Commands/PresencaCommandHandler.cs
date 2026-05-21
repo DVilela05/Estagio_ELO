@@ -62,7 +62,7 @@ namespace WebApplication1.Core.Commands
 
         public string CommandName => "presença";
 
-        public string Description => _localizer.Get("Presence_Description", SupportedLanguage.Portuguese);
+        public string GetDescription(SupportedLanguage? language) => _localizer.Get("Presence_Description", language);
 
         public string[] Triggers => _triggerMap.Keys.ToArray();
 

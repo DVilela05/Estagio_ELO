@@ -28,7 +28,7 @@ namespace WebApplication1.Core.Commands
 
         public string CommandName => "ajuda";
 
-        public string Description => _localizer.Get("Help_Description", SupportedLanguage.Portuguese);
+        public string GetDescription(SupportedLanguage? language) => _localizer.Get("Help_Description", language);
 
         public string[] Triggers => _triggerMap.Keys.ToArray();
 
@@ -68,7 +68,7 @@ namespace WebApplication1.Core.Commands
             {
                 // Obter nome e descrição na língua correta
                 string commandName = handler.CommandName;
-                string description = handler.Description;
+                string description = handler.GetDescription(lang);
 
                 // Para cada handler, mostrar os triggers da língua detetada (ou todos se a língua não for detetada)
                 string triggers = string.Join(", ", handler.Triggers.Take(5).Select(t => $"\"{t}\""));

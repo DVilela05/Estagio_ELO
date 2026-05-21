@@ -300,6 +300,10 @@ namespace WebApplication1.Application
 
             if (pending != null)
             {
+                // Garante que a língua da resposta é a mesma do comando original,
+                // e não a língua do "sim/não" que acabou de ser recebido.
+                lang = pending.OriginalMessage.Language ?? lang;
+
                 string pendingCommand = pending.CommandName;
 
                 if (pending.AwaitingLocation)

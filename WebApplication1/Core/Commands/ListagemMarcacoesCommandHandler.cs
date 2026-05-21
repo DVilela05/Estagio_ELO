@@ -52,7 +52,7 @@ namespace WebApplication1.Core.Commands
 
         public string CommandName => "listagem_marcações";
 
-        public string Description => _localizer.Get("Listagem_Description", SupportedLanguage.Portuguese);
+        public string GetDescription(SupportedLanguage? language) => _localizer.Get("Listagem_Description", language);
 
         public string[] Triggers => _triggerMap.Keys.ToArray();
 
@@ -315,10 +315,11 @@ namespace WebApplication1.Core.Commands
             _logger.LogInformation("Histórico processado com sucesso: {Log}", mensagensProcessadasLog);
 
             // ─── CHAMADA DO WEB SERVICE WCF (A IMPLEMENTAR / DESCOBRIR) ───
-            /*
+            
             try
             {
                 string token = "Diogo";
+                IncomingMessage message = state.OriginalMessage; // Necessário porque message não existe neste scope
                 int apiType = message.Platform == MessagePlatform.Teams ? 2 : 1;
                 string numTelefone = message.Platform == MessagePlatform.WhatsApp ? message.From : "";
                 string email = message.Platform == MessagePlatform.Teams ? (message.UserEmail ?? "") : "";
@@ -327,9 +328,34 @@ namespace WebApplication1.Core.Commands
                 string dataFormatada = message.ReceivedAt.ToString("dd-MM-yyyy HH:mm:ss");
 
                 string dateStartStr = startDate.ToString("dd-MM-yyyy");
-                string dateEndStr = startDate == endDate ? "" : endDate.ToString("dd-MM-yyyy");
+                string dateEndStr = "";
 
-                string parametroBruto = $"{token}|{apiType}|{numTelefone}|{commandType}|{dataFormatada}|{email}|{dateStartStr}|{dateEndStr}";
+                // Lógica do nQueryType e data de fim vazia para 1, 2 e 3
+                int nQueryType = 4;
+                if (startDate == endDate)
+                {
+                    if (startDate.Date == DateTime.Today)
+                    {
+                        nQueryType = 1; // Hoje
+                    }
+                    else if (startDate.Date == DateTime.Today.AddDays(-1))
+                    {
+                        nQueryType = 2; // Ontem
+                    }
+                    else
+                    {
+                        nQueryType = 3; // Data Específica (1 dia)
+                    }
+                    // Para 1, 2 e 3 o segundo campo (data de fim) vai vazio
+                    dateEndStr = "";
+                }
+                else
+                {
+                    nQueryType = 4; // Período de datas
+                    dateEndStr = endDate.ToString("dd-MM-yyyy");
+                }
+
+                string parametroBruto = $"{token}|{apiType}|{numTelefone}|{commandType}|{dataFormatada}|{email}|{nQueryType}|{dateStartStr}|{dateEndStr}";
                 
                 byte[] textBytes = System.Text.Encoding.UTF8.GetBytes(parametroBruto);
                 string parametro = System.Convert.ToBase64String(textBytes);
@@ -338,26 +364,32 @@ namespace WebApplication1.Core.Commands
 
                 string bodyParaEnviar = $"\"{parametro}\"";
 
-                // NOTA: Substituir "MÉTODO_A_DESCOBRIR" pelo nome real do método de listagem quando conhecido
+                // Chama o método metalm1
                 string rawResponse = await WebServiceUtils.WCFRESTServiceCall(
-                    "POST", "MÉTODO_A_DESCOBRIR", bodyParaEnviar, _logger, _wsSettings.BaseUrl);
+                    "POST", "metalm1", bodyParaEnviar, _logger, _wsSettings.BaseUrl);
 
                 if (rawResponse.StartsWith("EXCEPTION|"))
                 {
                     throw new HttpRequestException($"Erro transitório do serviço: {rawResponse}");
                 }
 
-                string responseDecoded = WebServiceUtils.Base64Decode(rawResponse.Replace("\"", ""));
+                // Descodificar EXATAMENTE da mesma forma que codificamos antes de enviar (Base64 -> UTF8)
+                string limpa = rawResponse.Replace("\"", "").Replace("\\", "");
+                byte[] responseBytes = System.Convert.FromBase64String(limpa);
+                string responseDecoded = System.Text.Encoding.UTF8.GetString(responseBytes);
+
                 _logger.LogInformation("📡 Resposta decodificada do Web Service: {Response}", responseDecoded);
 
-                // Lógica para mapear a resposta descodificada para o texto de retorno...
+                // O ParseRealMarkingsList já foi criado abaixo para separar o formato "dd/MM/yyyy HH:mm|dd/MM/yyyy HH:mm"
+                return ParseRealMarkingsList(responseDecoded, startDate, endDate, message, lang);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Erro ao tentar chamar o Web Service de listagem");
             }
-            */
+            
 
+            // Enquanto o WCF não está ligado, devolve o Mock
             return BuildMockMarkingsList(startDate, endDate, state.OriginalMessage, lang);
         }
 
@@ -398,6 +430,84 @@ namespace WebApplication1.Core.Commands
                     lines.Add(_localizer.Get("Listagem_MockLunchOut", lang));
                     lines.Add(_localizer.Get("Listagem_MockLunchIn", lang));
                     lines.Add(_localizer.Get("Listagem_MockExit", lang));
+                }
+                lines.Add("");
+            }
+
+            lines.Add(_localizer.Get("Listagem_MockSeparator", lang));
+            lines.Add(_localizer.Get("Listagem_MockNote", lang));
+
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// Faz o parse da string recebida do WebService (ex: "dd/MM/yyyy HH:mm|dd/MM/yyyy HH:mm")
+        /// e constrói a listagem final formatada.
+        /// </summary>
+        private string ParseRealMarkingsList(string decodedResponse, DateTime startDate, DateTime endDate, IncomingMessage message, SupportedLanguage? lang)
+        {
+            string userName = string.IsNullOrWhiteSpace(message.UserName) 
+                ? _localizer.Get("Listagem_DefaultUser", lang) 
+                : message.UserName;
+                
+            string periodStr = startDate == endDate 
+                ? startDate.ToString("dd/MM/yyyy") 
+                : $"{startDate:dd/MM/yyyy} a {endDate:dd/MM/yyyy}";
+
+            var lines = new List<string>
+            {
+                _localizer.Get("Listagem_MockTitle", lang),
+                _localizer.Get("Listagem_MockUser", lang, userName),
+                _localizer.Get("Listagem_MockPeriod", lang, periodStr),
+                _localizer.Get("Listagem_MockSeparator", lang),
+                ""
+            };
+
+            if (string.IsNullOrWhiteSpace(decodedResponse))
+            {
+                lines.Add("Sem marcações encontradas para este período.");
+                return string.Join("\n", lines);
+            }
+
+            // O separador pode ser '|' ou quebras de linha '\n' ou '\r'
+            string[] rawMarkings = decodedResponse.Split(new[] { '|', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            var parsedDates = new List<DateTime>();
+            foreach (var rm in rawMarkings)
+            {
+                string cleanDateStr = rm.Trim();
+                
+                // Descodificar com o formato exato dd/MM/yyyy HH:mm
+                if (DateTime.TryParseExact(cleanDateStr, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out DateTime d))
+                {
+                    parsedDates.Add(d);
+                }
+                else if (DateTime.TryParse(cleanDateStr, out DateTime dtFallback))
+                {
+                    parsedDates.Add(dtFallback);
+                }
+            }
+
+            if (parsedDates.Count == 0)
+            {
+                lines.Add("Sem marcações registadas ou válidas.");
+                return string.Join("\n", lines);
+            }
+
+            // Agrupar as datas por dia (para o caso de haver listagens de vários dias)
+            var grouped = parsedDates.OrderBy(d => d).GroupBy(d => d.Date);
+
+            foreach (var group in grouped)
+            {
+                string dayName = GetDayOfWeek(group.Key.DayOfWeek, lang);
+                string dateStr = group.Key.ToString("dd/MM/yyyy");
+
+                lines.Add(_localizer.Get("Listagem_MockDayHeader", lang, dateStr, dayName));
+                
+                // Mostrar as horas exatas pela ordem que vieram
+                foreach (var mark in group)
+                {
+                    lines.Add($"🕒 {mark.ToString("HH:mm")}");
                 }
                 lines.Add("");
             }

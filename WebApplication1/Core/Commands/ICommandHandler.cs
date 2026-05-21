@@ -27,7 +27,7 @@ namespace WebApplication1.Core.Commands
         /// Descrição curta do que o comando faz.
         /// Aparece na lista de ajuda.
         /// </summary>
-        string Description { get; }
+        string GetDescription(SupportedLanguage? language);
 
         /// <summary>
         /// Palavras-chave que ativam este comando.
