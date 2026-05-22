@@ -67,11 +67,20 @@ namespace WebApplication1.Resources
             ["Listagem_Cancelled"] = "❌ Demande de liste annulée. Si vous avez besoin d'aide, tapez *aide*.",
             ["Listagem_AskPeriod"] =
                 "Quelle période souhaitez-vous consulter ? Vous pouvez indiquer une date (ex : *10/10/2025*, *aujourd'hui*, *hier*) ou une période jusqu'à 7 jours (ex : *01/10/2025 à 07/10/2025*).\n\n" +
-                "💡 _Astuce : Vous pouvez écrire naturellement, ex : 'montre-moi d'hier à aujourd'hui' ou 'je veux voir le 12/10/2025'._",
+                "💡 _Astuce : Vous pouvez écrire 'annuler' ou 'quitter' pour annuler la demande._",
 
             ["Listagem_EmptyInput"] = "⚠️ Le texte envoyé est vide.",
             ["Listagem_NoDateFound"] = "⚠️ Je n'ai trouvé aucune date ou mot-clé de période valide.",
             ["Listagem_PeriodTooLong"] = "⚠️ La période d'analyse ({0} jours) dépasse le maximum de 7 jours.",
+            ["Listagem_InvalidFormat"] = "⚠️ Format invalide. Veuillez n'entrer que les dates.",
+            
+            // Erreurs WebService
+            ["Listagem_Error_InvalidStartDateTime"] = "⚠️ La date de début indiquée est invalide.",
+            ["Listagem_Error_InvalidDateTimePeriod"] = "⚠️ La période de dates indiquée est invalide.",
+            ["Listagem_Error_InvalidNrDaysPeriod"] = "⚠️ La période indiquée dépasse la limite autorisée (maximum 7 jours).",
+            ["Listagem_Error_Null"] = "⚠️ Une erreur s'est produite lors du traitement des pointages. Veuillez réessayer plus tard.",
+            ["Listagem_Error_NoTimeBookings"] = "ℹ️ Il n'y a pas de pointages enregistrés pour la période indiquée.",
+            ["Listagem_ErrorGeneric"] = "❌ Une erreur s'est produite lors de la consultation des pointages. Veuillez réessayer plus tard.",
             ["Listagem_DateRetryHelp"] =
                 "\n\nVeuillez indiquer une date précise ou une période (maximum 7 jours).\n" +
                 "Exemples :\n" +
@@ -79,7 +88,7 @@ namespace WebApplication1.Resources
                 "• *01/10/2025 à 07/10/2025*\n" +
                 "• *aujourd'hui*\n" +
                 "• *hier*\n\n" +
-                "💡 _Astuce : Vous pouvez écrire naturellement, ex : 'je veux voir le 10/10/2025' ou 'montre d'hier à aujourd'hui'._",
+                "💡 _Astuce : Vous pouvez écrire 'annuler' ou 'quitter' pour annuler la demande._",
 
             ["Listagem_DateToday"] = "aujourd'hui",
             ["Listagem_DateYesterday"] = "hier",

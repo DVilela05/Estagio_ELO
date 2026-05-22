@@ -67,11 +67,20 @@ namespace WebApplication1.Resources
             ["Listagem_Cancelled"] = "❌ Solicitud de listado cancelada. Si necesitas ayuda, escribe *ayuda*.",
             ["Listagem_AskPeriod"] =
                 "¿Qué período quieres consultar? Puedes indicar una fecha (ej: *10/10/2025*, *hoy*, *ayer*) o un período de hasta 7 días (ej: *01/10/2025 a 07/10/2025*).\n\n" +
-                "💡 _Consejo: Puedes escribir de forma natural, ej: 'muéstrame de ayer a hoy' o 'quiero ver el 12/10/2025'._",
+                "💡 _Consejo: Puedes escribir 'cancelar' o 'salir' para anular la solicitud._",
 
             ["Listagem_EmptyInput"] = "⚠️ El texto enviado está vacío.",
             ["Listagem_NoDateFound"] = "⚠️ No pude encontrar ninguna fecha o palabra clave de período válida.",
             ["Listagem_PeriodTooLong"] = "⚠️ El período de análisis ({0} días) supera el máximo de 7 días.",
+            ["Listagem_InvalidFormat"] = "⚠️ Formato inválido. Por favor, introduce solo las fechas.",
+            
+            // Errores de WebService
+            ["Listagem_Error_InvalidStartDateTime"] = "⚠️ La fecha de inicio indicada es inválida.",
+            ["Listagem_Error_InvalidDateTimePeriod"] = "⚠️ El período de fechas indicado es inválido.",
+            ["Listagem_Error_InvalidNrDaysPeriod"] = "⚠️ El período indicado supera el límite permitido (máximo 7 días).",
+            ["Listagem_Error_Null"] = "⚠️ Se ha producido un error al procesar las marcas. Por favor, inténtalo de nuevo más tarde.",
+            ["Listagem_Error_NoTimeBookings"] = "ℹ️ No hay marcas registradas para el período indicado.",
+            ["Listagem_ErrorGeneric"] = "❌ Ocurrió un error al consultar las marcas. Inténtalo de nuevo más tarde.",
             ["Listagem_DateRetryHelp"] =
                 "\n\nPor favor, indica una fecha específica o un período (máximo 7 días).\n" +
                 "Ejemplos:\n" +
@@ -79,7 +88,7 @@ namespace WebApplication1.Resources
                 "• *01/10/2025 a 07/10/2025*\n" +
                 "• *hoy*\n" +
                 "• *ayer*\n\n" +
-                "💡 _Consejo: Puedes escribir de forma natural, ej: 'quiero ver el 10/10/2025' o 'muestra de ayer a hoy'._",
+                "💡 _Consejo: Puedes escribir 'cancelar' o 'salir' para anular la solicitud._",
 
             ["Listagem_DateToday"] = "hoy",
             ["Listagem_DateYesterday"] = "ayer",

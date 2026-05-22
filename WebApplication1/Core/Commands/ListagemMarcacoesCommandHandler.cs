@@ -111,6 +111,20 @@ namespace WebApplication1.Core.Commands
                     // ─── ETAPA 1: Aguardar Período ────────────────────────────
                     if (state.CurrentState == ListagemState.AwaitingPeriod)
                     {
+                        string bodyToLower = message.Body.Trim().ToLowerInvariant();
+                        if (bodyToLower == "cancelar" || bodyToLower == "sair" || bodyToLower == "cancel" || bodyToLower == "exit")
+                        {
+                            _pendingPeriods.TryRemove(userId, out _);
+                            return _localizer.Get("Listagem_Cancelled", lang);
+                        }
+
+                        state.Attempts++;
+                        if (state.Attempts >= 3)
+                        {
+                            _pendingPeriods.TryRemove(userId, out _);
+                            return _localizer.Get("Listagem_Cancelled", lang);
+                        }
+
                         if (TryExtractPeriod(message.OriginalBody, lang, out DateTime startDate, out DateTime endDate, out string validationError))
                         {
                             // Transição de estado: datas válidas encontradas
@@ -186,19 +200,26 @@ namespace WebApplication1.Core.Commands
                 return false;
             }
 
-            // Normalizar espaços à volta de barras, traços e pontos
-            string cleanedInput = Regex.Replace(input, @"\s*([\/\-\.])\s*", "$1");
-
-            // Recolher as palavras-chave de data em todas as línguas suportadas
             var todayKeywords = GetDateKeywordsAllLanguages("Listagem_DateToday");
             var yesterdayKeywords = GetDateKeywordsAllLanguages("Listagem_DateYesterday");
 
-            // Procurar por padrões de data e pelas palavras-chave
             string dateRegexPattern = @"\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b";
             string keywordsPattern = string.Join("|", todayKeywords.Concat(yesterdayKeywords).Select(k => Regex.Escape(k)));
             string fullPattern = $"{dateRegexPattern}|\\b({keywordsPattern})\\b";
             
-            var matches = Regex.Matches(cleanedInput, fullPattern, RegexOptions.IgnoreCase);
+            var matches = Regex.Matches(input, fullPattern, RegexOptions.IgnoreCase);
+
+            string stringWithoutDates = Regex.Replace(input, fullPattern, "", RegexOptions.IgnoreCase);
+            
+            // Remover palavras de ligação comuns e pontuação inofensiva
+            stringWithoutDates = Regex.Replace(stringWithoutDates, @"\b(a|ate|até|to|and|e)\b", "", RegexOptions.IgnoreCase);
+            stringWithoutDates = Regex.Replace(stringWithoutDates, @"[\s\-\.,;:!?]", "");
+            
+            if (!string.IsNullOrWhiteSpace(stringWithoutDates))
+            {
+                validationError = _localizer.Get("Listagem_InvalidFormat", lang) ?? "⚠️ Formato inválido. Por favor, insere apenas as datas.";
+                return false;
+            }
 
             var extractedDates = new List<DateTime>();
 
@@ -218,6 +239,11 @@ namespace WebApplication1.Core.Commands
                     if (TryParseSingleDate(val, out DateTime parsedDate))
                     {
                         extractedDates.Add(parsedDate);
+                    }
+                    else
+                    {
+                        validationError = _localizer.Get("Listagem_InvalidFormat", lang) ?? "⚠️ Formato inválido. Por favor, insere apenas as datas.";
+                        return false;
                     }
                 }
             }
@@ -260,11 +286,16 @@ namespace WebApplication1.Core.Commands
                 int totalDays = (endDate - startDate).Days + 1;
                 if (totalDays > 7)
                 {
-                    validationError = _localizer.Get("Listagem_PeriodTooLong", lang, totalDays);
+                    validationError = _localizer.Get("Listagem_PeriodTooLong", lang, totalDays) ?? "⚠️ O período de análise excede o limite máximo de 7 dias.";
                     return false;
                 }
 
                 return true;
+            }
+            else
+            {
+                validationError = _localizer.Get("Listagem_InvalidFormat", lang) ?? "⚠️ Formato inválido. Por favor, insere apenas uma ou duas datas.";
+                return false;
             }
         }
 
@@ -285,9 +316,19 @@ namespace WebApplication1.Core.Commands
 
         private bool TryParseSingleDate(string part, out DateTime parsedDate)
         {
+            var parts = part.Split(new[] { '/', '-', '.' });
+            if (parts.Length == 3)
+            {
+                string day = parts[0].PadLeft(2, '0');
+                string month = parts[1].PadLeft(2, '0');
+                string year = parts[2];
+                if (year.Length == 2) year = "20" + year;
+
+                part = $"{day}/{month}/{year}";
+            }
+
             string[] formats = {
                 "dd/MM/yyyy", "dd-MM-yyyy", "dd.MM.yyyy",
-                "dd/MM/yy", "dd-MM-yy", "dd.MM.yy",
                 "yyyy-MM-dd", "yyyy/MM/dd"
             };
 
@@ -386,13 +427,74 @@ namespace WebApplication1.Core.Commands
 
                 _logger.LogInformation("📡 Resposta decodificada do Web Service: {Response}", responseDecoded);
 
+                string cleanResponse = responseDecoded.Trim().ToUpperInvariant();
+
+                if (cleanResponse == "ERROR|UNKNOWNAPI")
+                {
+                    _logger.LogWarning("⚠️ API desconhecida enviada para o WCF ({Response})", responseDecoded);
+                    return _localizer.Get("Presence_ErrorUnknownApi", lang);
+                }
+                else if (cleanResponse == "ERROR|EMAIL_MANDATORY")
+                {
+                    _logger.LogWarning("⚠️ E-mail em falta na chamada do Teams ({Response})", responseDecoded);
+                    return _localizer.Get("Presence_ErrorEmailMandatory", lang);
+                }
+                else if (cleanResponse == "ERROR|NUMBER_MESSAGE_MANDATORY")
+                {
+                    _logger.LogWarning("⚠️ Número de telefone em falta na chamada do WhatsApp ({Response})", responseDecoded);
+                    return _localizer.Get("Presence_ErrorNumberMandatory", lang);
+                }
+                else if (cleanResponse == "ERROR|TOKEN_MANDATORY")
+                {
+                    _logger.LogWarning("⚠️ Token em falta na chamada WCF ({Response})", responseDecoded);
+                    return _localizer.Get("Presence_ErrorTokenMandatory", lang);
+                }
+                else if (cleanResponse == "ERROR|INVALID_DATETIME")
+                {
+                    _logger.LogWarning("⚠️ Data inválida enviada ao WCF ({Response})", responseDecoded);
+                    return _localizer.Get("Presence_ErrorInvalidDatetime", lang);
+                }
+                else if (cleanResponse.StartsWith("ERROR|LOGINERROR_"))
+                {
+                    _logger.LogWarning("⚠️ Erro de validação de colaborador no ELO ({Response})", responseDecoded);
+                    string idType = message.Platform == MessagePlatform.Teams
+                        ? _localizer.Get("Presence_IdType_Email", lang)
+                        : _localizer.Get("Presence_IdType_Phone", lang);
+                    return _localizer.Get("Presence_ErrorLoginError", lang, idType);
+                }
+                else if (cleanResponse == "ERROR|DECODEERROR")
+                {
+                    _logger.LogWarning("⚠️ Erro a descodificar Base64 no WCF ({Response})", responseDecoded);
+                    return _localizer.Get("Presence_ErrorDecodeError", lang);
+                }
+                else if (cleanResponse == "ERROR|INVALID_STARTDATETIME" || cleanResponse == "INVALID_STARTDATETIME")
+                {
+                    return _localizer.Get("Listagem_Error_InvalidStartDateTime", lang) ?? "⚠️ A data de início indicada é inválida.";
+                }
+                else if (cleanResponse == "ERROR|INVALID_DATETIME_PERIOD" || cleanResponse == "INVALID_DATETIME_PERIOD")
+                {
+                    return _localizer.Get("Listagem_Error_InvalidDateTimePeriod", lang) ?? "⚠️ O período de datas indicado é inválido.";
+                }
+                else if (cleanResponse == "ERROR|INVALID_NRDAYS_PERIOD" || cleanResponse == "INVALID_NRDAYS_PERIOD")
+                {
+                    return _localizer.Get("Listagem_Error_InvalidNrDaysPeriod", lang) ?? "⚠️ O período indicado excede o limite permitido (máximo 7 dias).";
+                }
+                else if (cleanResponse == "ERROR|NULL" || cleanResponse == "NULL")
+                {
+                    return _localizer.Get("Listagem_Error_Null", lang) ?? "⚠️ Ocorreu um erro a processar as marcações. Por favor, tenta novamente mais tarde.";
+                }
+                else if (cleanResponse == "ERROR|NO_TIME_BOOKINGS" || cleanResponse == "NO_TIME_BOOKINGS")
+                {
+                    return _localizer.Get("Listagem_Error_NoTimeBookings", lang) ?? "ℹ️ Não existem marcações registadas para o período indicado.";
+                }
+
                 // O ParseRealMarkingsList já foi criado abaixo para separar o formato "dd/MM/yyyy HH:mm|dd/MM/yyyy HH:mm"
                 return ParseRealMarkingsList(responseDecoded, startDate, endDate, message, lang);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Erro ao tentar chamar o Web Service de listagem");
-                return "❌ Ocorreu um erro ao consultar as marcações. Tenta novamente mais tarde.";
+                return _localizer.Get("Listagem_ErrorGeneric", lang);
             }
         }
 
@@ -413,7 +515,7 @@ namespace WebApplication1.Core.Commands
             var lines = new List<string>
             {
                 _localizer.Get("Listagem_MockTitle", lang),
-                _localizer.Get("Listagem_MockUser", lang, userName),
+                // _localizer.Get("Listagem_MockUser", lang, userName),
                 _localizer.Get("Listagem_MockPeriod", lang, periodStr),
                 _localizer.Get("Listagem_MockSeparator", lang),
                 ""
@@ -421,7 +523,7 @@ namespace WebApplication1.Core.Commands
 
             if (string.IsNullOrWhiteSpace(decodedResponse))
             {
-                lines.Add("Sem marcações encontradas para este período.");
+                lines.Add(_localizer.Get("Listagem_Error_NoTimeBookings", lang));
                 return string.Join("\n", lines);
             }
 
@@ -446,7 +548,7 @@ namespace WebApplication1.Core.Commands
 
             if (parsedDates.Count == 0)
             {
-                lines.Add("Sem marcações registadas ou válidas.");
+                lines.Add(_localizer.Get("Listagem_Error_NoTimeBookings", lang));
                 return string.Join("\n", lines);
             }
 
@@ -469,7 +571,7 @@ namespace WebApplication1.Core.Commands
             }
 
             lines.Add(_localizer.Get("Listagem_MockSeparator", lang));
-            lines.Add(_localizer.Get("Listagem_MockNote", lang));
+            // lines.Add(_localizer.Get("Listagem_MockNote", lang));
 
             return string.Join("\n", lines);
         }
@@ -501,6 +603,7 @@ namespace WebApplication1.Core.Commands
             public DateTime SelectedEndDate { get; set; }
             public string PeriodInput { get; set; } = string.Empty;
             public SupportedLanguage? DetectedLanguage { get; set; }
+            public int Attempts { get; set; } = 0;
         }
     }
 }

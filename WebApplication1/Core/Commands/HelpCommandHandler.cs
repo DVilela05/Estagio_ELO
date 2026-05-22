@@ -79,8 +79,8 @@ namespace WebApplication1.Core.Commands
             }
 
             lines.Add(_localizer.Get("Help_FooterSeparator", lang));
-            lines.Add(_localizer.Get("Help_NotePresence", lang));
-            lines.Add(_localizer.Get("Help_NoteMobile", lang));
+            // lines.Add(_localizer.Get("Help_NotePresence", lang));
+            // lines.Add(_localizer.Get("Help_NoteMobile", lang));
             lines.Add("");
             lines.Add(_localizer.Get("Help_Hint", lang));
 

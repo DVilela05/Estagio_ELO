@@ -26,10 +26,10 @@ namespace WebApplication1.Resources
                 "marcacao presença|marcacao presenca|cá estou|ca estou|estou cá|estou ca|cheguei",
 
             ["Listagem_Triggers"] =
-                "ver marcações|ver marcacoes|marcações|marcacoes|listagem|" +
-                "listagem de marcações|listagem de marcacoes|listar marcações|listar marcacoes|" +
+                "ver marcações|ver marcacoes|marcações|marcacoes|listar|" +
+                "listar marcação|listar marcações|listar marcacao|listar marcacoes|" +
                 "minhas marcações|minhas marcacoes|ver assiduidade|assiduidade|" +
-                "listagem assiduidade|listagem de assiduidade",
+                "listar assiduidade|listar de assiduidade",
 
             ["Help_Triggers"] = "ajuda|help",
 
@@ -77,12 +77,21 @@ namespace WebApplication1.Resources
             ["Listagem_Cancelled"] = "❌ Pedido de listagem cancelado. Se precisares de ajuda, escreve *ajuda*.",
             ["Listagem_AskPeriod"] =
                 "Qual é o período de análise? Podes indicar uma data (ex: *10/10/2025*, *hoje*, *ontem*) ou um período de análise até 7 dias (ex: *01/10/2025 a 07/10/2025*).\n\n" +
-                "💡 _Dica: Podes escrever uma frase natural, ex: 'mostra-me as marcações de ontem a hoje' ou 'quero ver o dia 12/10/2025'._",
+                "💡 _Dica: Podes escrever 'cancelar' ou 'sair' para anulares o pedido, ou usa uma frase natural._",
 
             // Erros de extração de período
             ["Listagem_EmptyInput"] = "⚠️ O texto enviado está vazio.",
             ["Listagem_NoDateFound"] = "⚠️ Não consegui encontrar nenhuma data ou palavra-chave de período válida.",
             ["Listagem_PeriodTooLong"] = "⚠️ O período de análise ({0} dias) excede o limite máximo de 7 dias.",
+            ["Listagem_InvalidFormat"] = "⚠️ Formato inválido. Por favor, insere apenas as datas.",
+            
+            // Erros de WebService (BD)
+            ["Listagem_Error_InvalidStartDateTime"] = "⚠️ A data de início indicada é inválida.",
+            ["Listagem_Error_InvalidDateTimePeriod"] = "⚠️ O período de datas indicado é inválido.",
+            ["Listagem_Error_InvalidNrDaysPeriod"] = "⚠️ O período indicado excede o limite permitido (máximo 7 dias).",
+            ["Listagem_Error_Null"] = "⚠️ Ocorreu um erro a processar as marcações. Por favor, tenta novamente mais tarde.",
+            ["Listagem_Error_NoTimeBookings"] = "ℹ️ Não existem marcações registadas para o período indicado.",
+            ["Listagem_ErrorGeneric"] = "❌ Ocorreu um erro ao consultar as marcações. Tenta novamente mais tarde.",
             ["Listagem_DateRetryHelp"] =
                 "\n\nPor favor, indica uma data específica ou um período de análise (máximo 7 dias).\n" +
                 "Exemplos:\n" +
@@ -90,7 +99,7 @@ namespace WebApplication1.Resources
                 "• *01/10/2025 a 07/10/2025*\n" +
                 "• *hoje*\n" +
                 "• *ontem*\n\n" +
-                "💡 _Dica: Podes escrever uma frase natural, ex: 'quero ver o dia 10/10/2025' ou 'mostra de ontem a hoje'._",
+                "💡 _Dica: Podes escrever 'cancelar' ou 'sair' para anulares o pedido, ou usa uma frase natural._",
 
             // Atalhos de datas
             ["Listagem_DateToday"] = "hoje",

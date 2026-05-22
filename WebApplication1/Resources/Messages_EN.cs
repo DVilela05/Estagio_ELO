@@ -67,11 +67,20 @@ namespace WebApplication1.Resources
             ["Listagem_Cancelled"] = "❌ Attendance listing cancelled. If you need help, type *help*.",
             ["Listagem_AskPeriod"] =
                 "What period do you want to check? You can enter a date (e.g. *10/10/2025*, *today*, *yesterday*) or a period of up to 7 days (e.g. *01/10/2025 to 07/10/2025*).\n\n" +
-                "💡 _Tip: You can write naturally, e.g. 'show me yesterday to today' or 'I want to see 12/10/2025'._",
+                "💡 _Tip: You can write 'cancel' or 'exit' to cancel the request._",
 
             ["Listagem_EmptyInput"] = "⚠️ The message text is empty.",
             ["Listagem_NoDateFound"] = "⚠️ I couldn't find any valid date or period keyword.",
             ["Listagem_PeriodTooLong"] = "⚠️ The analysis period ({0} days) exceeds the maximum of 7 days.",
+            ["Listagem_InvalidFormat"] = "⚠️ Invalid format. Please enter only the dates.",
+            
+            // WebService Errors
+            ["Listagem_Error_InvalidStartDateTime"] = "⚠️ The specified start date is invalid.",
+            ["Listagem_Error_InvalidDateTimePeriod"] = "⚠️ The specified date period is invalid.",
+            ["Listagem_Error_InvalidNrDaysPeriod"] = "⚠️ The specified period exceeds the allowed limit (maximum 7 days).",
+            ["Listagem_Error_Null"] = "⚠️ An error occurred while processing the bookings. Please try again later.",
+            ["Listagem_Error_NoTimeBookings"] = "ℹ️ There are no bookings registered for the specified period.",
+            ["Listagem_ErrorGeneric"] = "❌ An error occurred while fetching the records. Please try again later.",
             ["Listagem_DateRetryHelp"] =
                 "\n\nPlease enter a specific date or period (up to 7 days).\n" +
                 "Examples:\n" +
@@ -79,7 +88,7 @@ namespace WebApplication1.Resources
                 "• *01/10/2025 to 07/10/2025*\n" +
                 "• *today*\n" +
                 "• *yesterday*\n\n" +
-                "💡 _Tip: You can write naturally, e.g. 'I want to see 10/10/2025' or 'show from yesterday to today'._",
+                "💡 _Tip: You can write 'cancel' or 'exit' to cancel the request._",
 
             ["Listagem_DateToday"] = "today",
             ["Listagem_DateYesterday"] = "yesterday",
