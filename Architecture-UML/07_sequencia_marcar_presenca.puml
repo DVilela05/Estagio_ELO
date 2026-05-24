@@ -93,7 +93,7 @@ presCmd -> presCmd : Base64Decode(response)
 presCmd -> presCmd : Analisar resposta:\n"OK|0" → Sucesso
 
 presCmd -> localizer : Get("Presence_Success", lang)
-localizer --> presCmd : "✅ Presença registada!"
+localizer --> presCmd : "Presença registada!"
 
 presCmd --> router : resposta traduzida
 router --> mps : resposta

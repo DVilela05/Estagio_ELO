@@ -118,7 +118,7 @@ listCmd -> listCmd : Verificar erros de negócio\n(INVALID_STARTDATETIME,\nNO_TI
 listCmd -> listCmd : ParseRealMarkingsList()\nAgrupar por dia,\nformatar como lista
 
 listCmd -> localizer : Get("Listagem_MockTitle", lang)
-localizer --> listCmd : "📅 Listagem de Marcações"
+localizer --> listCmd : "Listagem de Marcações"
 
 listCmd --> mps : resposta formatada
 mps -> msgSvc : SendTextMessage(resposta)

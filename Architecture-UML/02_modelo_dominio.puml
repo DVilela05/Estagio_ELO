@@ -35,8 +35,6 @@ class IncomingMessage {
     + ReceivedAt : DateTime
     + SentAt : DateTime
     + HasLocation : bool
-    + Latitude : double?
-    + Longitude : double?
     + Language : SupportedLanguage?
     + ConfirmationText : string?
 }
@@ -46,7 +44,6 @@ class PendingConfirmation {
     + CommandName : string
     + CreatedAt : DateTime
     + InvalidAttempts : int
-    + AwaitingLocation : bool
 }
 
 class PendingPeriodState {
@@ -63,7 +60,6 @@ class BusinessApiResult {
     + Success : bool
     + Message : string?
     + ErrorCode : string?
-    + IsStub : bool
     --
     + {static} Ok() : BusinessApiResult
     + {static} Fail() : BusinessApiResult
@@ -75,8 +71,6 @@ class Booking <<ELO Legacy>> {
     + CdRcsHumano : string
     + DtHrMrc : DateTime
     + Type : EnumBookingType
-    + Latitude : string
-    + Longitude : string
 }
 
 ' ─── Relações ─────────────────────────────────────────────

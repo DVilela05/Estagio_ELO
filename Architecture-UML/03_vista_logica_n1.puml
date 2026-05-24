@@ -17,11 +17,11 @@ rectangle "WhatsApp Cloud API\n(Meta Platforms)" as whatsapp #D5F5E3 {
 rectangle "Microsoft Bot Framework\n(Teams)" as teams #D6EAF8 {
 }
 
-rectangle "ELO Web Service\n(WCF / nGMobileWS)" as elo #FADBD8 {
+rectangle "ELO Web Service\n(WCF)" as elo #FADBD8 {
 }
 
 ' ─── Sistema Central ──────────────────────────────────────
-rectangle "Gateway Webhook\n(.NET 8 / Kestrel)" as gateway #FCF3CF {
+rectangle "Gateway Webhook\n(.NET 8)" as gateway #FCF3CF {
 }
 
 ' ─── Fluxo ────────────────────────────────────────────────

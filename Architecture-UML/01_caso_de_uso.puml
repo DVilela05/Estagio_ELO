@@ -11,12 +11,9 @@ title Diagrama de Casos de Uso — Gateway Webhook de Assiduidade
 
 ' ─── Atores ───────────────────────────────────────────────
 actor "Colaborador" as user
-actor "WhatsApp\nCloud API" as whatsapp <<Sistema Externo>>
-actor "Microsoft\nBot Framework" as teams <<Sistema Externo>>
-actor "ELO\nWeb Service (WCF)" as elo <<Sistema Legado>>
 
 ' ─── Sistema ──────────────────────────────────────────────
-rectangle "Gateway Webhook (.NET 8)" {
+rectangle "Gateway Webhook " {
 
     usecase "Marcar Presença" as UC1
     usecase "Listar Marcações\nde Assiduidade" as UC2
@@ -50,15 +47,5 @@ user -- UC1
 user -- UC2
 user -- UC3
 
-whatsapp -- UC1
-whatsapp -- UC2
-whatsapp -- UC3
-
-teams -- UC1
-teams -- UC2
-teams -- UC3
-
-UC1 -- elo
-UC2 -- elo
 
 @enduml
