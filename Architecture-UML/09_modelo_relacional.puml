@@ -1,0 +1,125 @@
+@startuml modelo_relacional
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam linetype ortho
+
+title Modelo Relacional — Perspetiva de Integração\n(representação simplificada das tabelas relevantes)
+
+' ─── Nota de Contexto ─────────────────────────────────────
+note as N1
+  As tabelas apresentadas contêm apenas os campos
+  relevantes para o contexto da integração com o
+  Webhook Gateway. A estrutura completa de cada
+  tabela inclui campos adicionais não representados.
+end note
+
+' ─── Tabela de Utilizadores ───────────────────────────────
+entity "UtlGuUsers\n(Utilizadores)" as UTL {
+    * **UIUser** : char(36) <<PK>>
+    --
+    * UIEmpRede : char(36)
+    * CdUser : nvarchar(100)
+    * DsUser : nvarchar(150)
+      Password : nvarchar(255)
+      Email : nvarchar(255)
+      Telemovel : nvarchar(25)
+      Lingua : nvarchar(15)
+      Activo : bit
+      Bloqueado : bit
+      DtHrRegisto : datetime
+      ...
+}
+
+' ─── Tabela de Recursos Humanos ───────────────────────────
+entity "RcsHumanos\n(Recursos Humanos)" as RCS {
+    * **UIRcsHumano** : char(36) <<PK>>
+    --
+    * UIEmpRede : char(36)
+    * UIUtilizador : char(36) <<FK>>
+      CdRcsHumano : nvarchar(25)
+      Nome : nvarchar(150)
+      NomeAbreviado : nvarchar(40)
+      Telemovel : nvarchar(25)
+      Telefone1 : nvarchar(25)
+      Email : nvarchar(255)
+      Morada : nvarchar(255)
+      CdPostal : nvarchar(150)
+      Sexo : nvarchar(1)
+      Nacionalidade : nvarchar(150)
+      CdGrupoTV : nvarchar(25)
+      CdCtgPro : nvarchar(25)
+      CdLocalTrb : nvarchar(25)
+      Pin : nvarchar(255)
+    ..Campos de Assiduidade..
+      EstadoCth : nvarchar(25)
+      PresenteCth : bit
+      DtHrCtrlMrc : datetime
+      DtUltMarcacaoCth : datetime
+      HrUltMarcacaoCth : datetime
+      TpUltMarcacaoCth : int
+    ..**TimeZoneId** : nvarchar(50)..
+      Activo : bit
+      DtActivacao : datetime
+      DtDesactivacao : datetime
+      DtHrRegisto : datetime
+      ...
+}
+
+' ─── Tabela de Marcações ──────────────────────────────────
+entity "CthMarcacoesLG\n(Marcações de Assiduidade)" as MRC {
+    * **UIMarcacao** : char(36) <<PK>>
+    --
+    * UIEmpRede : char(36)
+    * UIFuncionario : char(36) <<FK>>
+      CdTerminal : int <<FK>>
+      CdLocalOrg : nvarchar(150)
+    ..Dados Temporais..
+      **DtHrMarcacao** : datetime
+      DtMarcacao : datetime
+      HrMarcacao : datetime
+      **TimeZoneId** : nvarchar(50)
+    ..Tipo de Marcação..
+      **TpMarcacao** : int
+      //1=Entrada, 2=Saída//
+      //3=Automática, 16=Justificação//
+    ..Geolocalização..
+      Latitude : float
+      Longitude : float
+      Accuracy : float
+    ..Auditoria..
+      CdUser : nvarchar(100)
+      IPAddress : nvarchar(250)
+      HostName : nvarchar(250)
+      DtHrRegisto : datetime
+      Exportado : bit
+      UISegmento : char(36)
+      UIZona : char(36)
+      MotivoMrc : nvarchar(25)
+      ...
+}
+
+' ─── Tabela de Equipamentos ───────────────────────────────
+entity "AqdEquipamentos\n(Equipamentos / Terminais)" as EQP {
+    * **UIEquipamento** : char(36) <<PK>>
+    --
+    * UIEmpRede : char(36)
+      DsEquipamento : nvarchar
+      Marca : nvarchar
+      Modelo : nvarchar
+      TpEquipamento : nvarchar
+      DeviceID : nvarchar
+      IPAddress : nvarchar
+      Status : nvarchar
+      Activo : bit
+      DtHrUltimaMrc : datetime
+      DtHrRegisto : datetime
+      ...
+}
+
+' ─── Relações ─────────────────────────────────────────────
+UTL ||--|| RCS : "UIUser = UIUtilizador\n(1:1)"
+RCS ||--o{ MRC : "UIRcsHumano = UIFuncionario\n(1:N)"
+EQP ||--o{ MRC : "UIEquipamento ↔ CdTerminal\n(1:N)"
+
+@enduml
