@@ -1,0 +1,44 @@
+@startuml vista_logica_n1
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam rectangleFontSize 13
+skinparam componentFontSize 12
+skinparam noteFontSize 11
+
+title Vista Lógica — Nível 1 (Diagrama de Contexto)
+
+' ─── Atores / Sistemas Externos ───────────────────────────
+actor "Colaborador" as user
+
+rectangle "WhatsApp Cloud API\n(Meta Platforms)" as whatsapp #D5F5E3 {
+}
+
+rectangle "Microsoft Bot Framework\n(Teams)" as teams #D6EAF8 {
+}
+
+rectangle "ELO Web Service\n(WCF / nGMobileWS)" as elo #FADBD8 {
+}
+
+' ─── Sistema Central ──────────────────────────────────────
+rectangle "Gateway Webhook\n(.NET 8 / Kestrel)" as gateway #FCF3CF {
+}
+
+' ─── Fluxo ────────────────────────────────────────────────
+user -down-> whatsapp : "Envia mensagem\nvia WhatsApp"
+user -down-> teams : "Envia mensagem\nvia Teams"
+
+whatsapp -down-> gateway : "HTTP POST\n(Webhook + HMAC)"
+teams -down-> gateway : "HTTP POST\n(Webhook + JWT)"
+
+gateway -down-> elo : "HTTP POST\n(REST → WCF)\nBase64 encoded"
+
+elo -up-> gateway : "Resposta Base64\n(OK|0 / ERROR|...)"
+
+gateway -up-> whatsapp : "HTTP POST\n(Resposta ao utilizador)"
+gateway -up-> teams : "HTTP POST\n(Reply Activity)"
+
+whatsapp -up-> user : "Mensagem de resposta"
+teams -up-> user : "Mensagem de resposta"
+
+@enduml

@@ -1,0 +1,103 @@
+@startuml modelo_dominio
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam classFontSize 12
+skinparam classAttributeFontSize 11
+
+title Modelo de Domínio — Gateway Webhook de Assiduidade
+
+' ─── Enumerações ──────────────────────────────────────────
+enum MessagePlatform {
+    WhatsApp
+    Teams
+}
+
+enum SupportedLanguage {
+    Portuguese
+    English
+    French
+    Spanish
+}
+
+' ─── Classes de Domínio ───────────────────────────────────
+class IncomingMessage {
+    + MessageId : string
+    + From : string
+    + ReplyEndpoint : string
+    + UserId : string
+    + UserName : string
+    + UserPhone : string?
+    + UserEmail : string?
+    + Body : string
+    + OriginalBody : string
+    + Platform : MessagePlatform
+    + ReceivedAt : DateTime
+    + SentAt : DateTime
+    + HasLocation : bool
+    + Latitude : double?
+    + Longitude : double?
+    + Language : SupportedLanguage?
+    + ConfirmationText : string?
+}
+
+class PendingConfirmation {
+    + OriginalMessage : IncomingMessage
+    + CommandName : string
+    + CreatedAt : DateTime
+    + InvalidAttempts : int
+    + AwaitingLocation : bool
+}
+
+class PendingPeriodState {
+    + OriginalMessage : IncomingMessage
+    + CurrentState : ListagemState
+    + SelectedStartDate : DateTime
+    + SelectedEndDate : DateTime
+    + DetectedLanguage : SupportedLanguage?
+    + Attempts : int
+    + CreatedAt : DateTime
+}
+
+class BusinessApiResult {
+    + Success : bool
+    + Message : string?
+    + ErrorCode : string?
+    + IsStub : bool
+    --
+    + {static} Ok() : BusinessApiResult
+    + {static} Fail() : BusinessApiResult
+    + {static} Timeout() : BusinessApiResult
+}
+
+class Booking <<ELO Legacy>> {
+    + UIFuncionario : Guid
+    + CdRcsHumano : string
+    + DtHrMrc : DateTime
+    + Type : EnumBookingType
+    + Latitude : string
+    + Longitude : string
+}
+
+' ─── Relações ─────────────────────────────────────────────
+IncomingMessage --> MessagePlatform : plataforma
+IncomingMessage --> SupportedLanguage : idioma
+
+PendingConfirmation --> IncomingMessage : mensagem original
+PendingPeriodState --> IncomingMessage : mensagem original
+
+IncomingMessage ..> Booking : origina\n(após validação)
+
+note bottom of Booking
+  Entidade do sistema ELO (legado).
+  Representa uma marcação de ponto
+  na base de dados da empresa.
+end note
+
+note bottom of PendingPeriodState
+  Estado temporário em memória.
+  Gere o fluxo multi-mensagem
+  da listagem de marcações.
+end note
+
+@enduml

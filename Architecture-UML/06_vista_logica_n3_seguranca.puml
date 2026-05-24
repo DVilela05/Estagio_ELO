@@ -1,0 +1,39 @@
+@startuml vista_logica_n3_seguranca
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam componentFontSize 11
+
+title Vista Lógica — Nível 3 (Pipeline de Segurança)
+
+rectangle "Middleware Global (todas as rotas)" #E8F1FF {
+    component "ExceptionHandlingMiddleware\n(captura exceções não tratadas)" as ex
+    component "SecurityHeadersMiddleware\n(HSTS, X-Frame-Options, CSP)" as sec
+    component "CorrelationIdMiddleware\n(rastreabilidade por pedido)" as corr
+    component "Rate Limiter\n(limite de pedidos por IP)" as rl
+}
+
+rectangle "Rota: /api/webhook/whatsapp" #EEF9F0 {
+    component "ValidateWhatsAppSignatureFilter\n(HMAC-SHA256 + FixedTimeEquals)" as waSig
+    component "WhatsAppConcurrencyGuardFilter\n(deduplicação + lock por remetente)" as waGuard
+    component "WebhookController\n(ReceiveWhatsAppMessage)" as waCtrl
+}
+
+rectangle "Rota: /api/webhook/teams" #FFF7E8 {
+    component "ValidateTeamsJwtFilter\n(OpenID Connect + validação JWT)" as teamsJwt
+    component "WebhookController\n(ReceiveTeamsActivity)" as teamsCtrl
+}
+
+' ─── Fluxo ────────────────────────────────────────────────
+ex -down-> sec
+sec -down-> corr
+corr -down-> rl
+
+rl -down-> waSig : "WhatsApp"
+waSig -down-> waGuard
+waGuard -down-> waCtrl
+
+rl -down-> teamsJwt : "Teams"
+teamsJwt -down-> teamsCtrl
+
+@enduml

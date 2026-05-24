@@ -1,0 +1,89 @@
+@startuml vista_logica_n3_processamento
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam componentFontSize 11
+skinparam activityFontSize 11
+
+title Vista Lógica — Nível 3 (Processamento de Mensagem)
+
+' Mostra o fluxo interno do MessageProcessingService
+
+start
+
+:Mensagem recebida\n(IncomingMessage);
+
+:Normalizar texto\n(remover emojis, pontuação);
+
+:Marcar como lida\n(MarkAsReadAsync);
+
+if (SentAt < arranque do bot?) then (sim)
+  :Ignorar\n(mensagem antiga);
+  stop
+endif
+
+if (SentAt dentro do\ngrace period?) then (sim)
+  :Bloquear como spam;
+  stop
+endif
+
+if (Utilizador já\nem processamento?) then (sim)
+  if (Confirmação pendente\n+ resposta sim/não?) then (sim)
+    :Bypass do lock\n(permitir entrada);
+  else (não)
+    :Ignorar\n(first-message-wins);
+    stop
+  endif
+endif
+
+:Adquirir lock\ndo utilizador;
+
+:Detetar idioma\n(indicativo/conteúdo);
+
+if (Confirmação pendente?) then (sim)
+  if (Expirada > 5 min?) then (sim)
+    :Remover confirmação\n(tratar como nova);
+  else (não)
+    if (Resposta = "Sim"?) then (sim)
+      :Executar comando\nvia CommandRouter;
+      :Enviar resultado;
+      stop
+    elseif (Resposta = "Não"?) then (sim)
+      :Cancelar pedido;
+      stop
+    else (outro)
+      :Tentativa inválida\n(max 3);
+      if (3 tentativas?) then (sim)
+        :Cancelar automaticamente;
+      else (não)
+        :Pedir sim/não novamente;
+      endif
+      stop
+    endif
+  endif
+endif
+
+if (Comando válido?) then (sim)
+  if (Ajuda ou Listagem?) then (sim)
+    :Executar diretamente\n(sem confirmação);
+  else (não)
+    :Criar PendingConfirmation;
+    :Pedir confirmação\n(sim/não);
+  endif
+else (não)
+  :Mensagem desconhecida\n(sugerir "ajuda");
+endif
+
+:Enviar resposta;
+
+:Registar tempo de resposta;
+
+if (Spam detetado?) then (sim)
+  :Delayed unlock (2s);
+else (não)
+  :Unlock imediato;
+endif
+
+stop
+
+@enduml

@@ -1,0 +1,78 @@
+@startuml vista_logica_n2
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam packageStyle rectangle
+skinparam componentFontSize 11
+
+title Vista Lógica — Nível 2 (Diagrama de Containers)
+
+' ─── Sistemas Externos ────────────────────────────────────
+rectangle "WhatsApp Cloud API" as wa_ext #D5F5E3
+rectangle "Microsoft Bot Framework" as teams_ext #D6EAF8
+rectangle "ELO Web Service (WCF)" as elo_ext #FADBD8
+
+' ─── Gateway Webhook (.NET 8) ─────────────────────────────
+package "Gateway Webhook (.NET 8)" #FCF3CF {
+
+    package "Api Layer" #FDEBD0 {
+        component "WebhookController" as ctrl
+        component "Middleware Pipeline\n(Security, Rate Limit,\nCorrelation, Exceptions)" as middleware
+        component "Webhook Parsers\n(WhatsApp / Teams)" as parsers
+    }
+
+    package "Application Layer" #E8DAEF {
+        component "MessageProcessingService\n(Anti-Spam, Confirmações,\nDeduplicação)" as mps
+    }
+
+    package "Core Layer" #D5F5E3 {
+        component "CommandRouter" as router
+        component "PresencaCommandHandler" as presCmd
+        component "ListagemMarcacoesCommandHandler" as listCmd
+        component "HelpCommandHandler" as helpCmd
+        component "BotLocalizer\n(i18n — Dicionários em Memória)" as localizer
+    }
+
+    package "Infrastructure Layer" #D6EAF8 {
+        component "WebServiceUtils\n(HTTP Client → WCF)" as wsUtils
+        component "WhatsAppService\n(Envio de respostas)" as waSvc
+        component "TeamsService\n(Envio de respostas)" as teamsSvc
+        component "MessagingServiceFactory" as factory
+    }
+
+    package "Resources" #F2F3F4 {
+        component "Messages_PT\nMessages_EN\nMessages_FR\nMessages_ES" as msgs
+    }
+}
+
+' ─── Fluxo ────────────────────────────────────────────────
+wa_ext -down-> middleware : "HTTP POST"
+teams_ext -down-> middleware : "HTTP POST"
+
+middleware -down-> ctrl
+ctrl -down-> parsers : "Parse JSON"
+parsers -down-> mps : "IncomingMessage"
+
+mps -down-> router : "RouteAsync()"
+router -down-> presCmd
+router -down-> listCmd
+router -down-> helpCmd
+
+presCmd -down-> wsUtils : "metaim1 (Base64)"
+listCmd -down-> wsUtils : "metalm1 (Base64)"
+
+presCmd --> localizer
+listCmd --> localizer
+helpCmd --> localizer
+localizer --> msgs
+
+wsUtils -down-> elo_ext : "HTTP POST (REST)"
+
+mps -right-> factory : "GetService(platform)"
+factory -right-> waSvc
+factory -right-> teamsSvc
+
+waSvc -up-> wa_ext : "Enviar resposta"
+teamsSvc -up-> teams_ext : "Enviar resposta"
+
+@enduml

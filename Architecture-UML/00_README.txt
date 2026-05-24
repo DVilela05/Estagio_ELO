@@ -1,26 +1,48 @@
-Architecture UML package (PlantUML) — versão simplificada
+╔══════════════════════════════════════════════════════════╗
+║       DIAGRAMAS UML — GATEWAY WEBHOOK ASSIDUIDADE       ║
+╚══════════════════════════════════════════════════════════╝
 
-Objetivo:
-- Diagramas pequenos, diretos e fáceis de explicar no relatório/apresentação.
-- Cada diagrama responde a uma pergunta específica.
+  Para visualizar os ficheiros .puml:
+  • VS Code: Instalar extensão "PlantUML" (jebbs) → Alt+D
+  • Online:  http://www.plantuml.com/plantuml/
 
-Como usar:
-1) Abrir qualquer ficheiro .puml
-2) Usar preview/export da extensão PlantUML no VS Code
-3) Exportar para PNG/SVG para o relatório
+══════════════════════════════════════════════════════════
 
-Diagramas incluídos:
-- 01_overview_layers.puml
-	Visão geral em camadas (API, Application, Core, Infrastructure)
+  01_caso_de_uso.puml
+     → Diagrama de Casos de Uso
+       Atores: Colaborador, WhatsApp API, Teams API, ELO WCF
+       Casos: Marcar Presença, Listar Marcações, Ajuda
 
-- 02_request_flow_whatsapp.puml
-	Fluxo WhatsApp ponta-a-ponta (webhook, filtros, processamento e resposta)
+  02_modelo_dominio.puml
+     → Modelo de Domínio
+       Classes: IncomingMessage, PendingConfirmation,
+       PendingPeriodState, BusinessApiResult, Booking (ELO)
 
-- 03_request_flow_teams.puml
-	Fluxo Teams ponta-a-ponta (JWT, processamento e reply)
+  03_vista_logica_n1.puml
+     → Vista Lógica Nível 1 (Diagrama de Contexto)
+       Visão de alto nível: sistemas externos ↔ Gateway
 
-- 04_presence_state_machine.puml
-	Máquina de estados da conversa para marcação de presença com PIN
+  04_vista_logica_n2.puml
+     → Vista Lógica Nível 2 (Diagrama de Containers)
+       Camadas internas: Api, Application, Core, Infrastructure
 
-- 05_security_pipeline.puml
-	Pipeline de segurança HTTP (middlewares, filtros e controlos anti-spam)
+  05_vista_logica_n3_processamento.puml
+     → Vista Lógica Nível 3 (Fluxo de Processamento)
+       Detalhe do MessageProcessingService (anti-spam,
+       confirmações, routing)
+
+  06_vista_logica_n3_seguranca.puml
+     → Vista Lógica Nível 3 (Pipeline de Segurança)
+       Middleware global + filtros por plataforma
+
+  07_sequencia_marcar_presenca.puml
+     → Diagrama de Sequência: Marcar Presença
+       Fluxo completo: mensagem → confirmação → WCF (metaim1)
+       → saveBooking → resposta ao utilizador
+
+  08_sequencia_listar_marcacoes.puml
+     → Diagrama de Sequência: Listar Marcações
+       Fluxo multi-mensagem: trigger → pedir período →
+       validar datas → confirmar → WCF (metalm1) → resposta
+
+══════════════════════════════════════════════════════════

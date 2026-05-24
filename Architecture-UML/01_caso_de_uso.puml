@@ -1,0 +1,64 @@
+@startuml caso_de_uso
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecaseFontSize 12
+skinparam actorFontSize 12
+
+title Diagrama de Casos de Uso — Gateway Webhook de Assiduidade
+
+' ─── Atores ───────────────────────────────────────────────
+actor "Colaborador" as user
+actor "WhatsApp\nCloud API" as whatsapp <<Sistema Externo>>
+actor "Microsoft\nBot Framework" as teams <<Sistema Externo>>
+actor "ELO\nWeb Service (WCF)" as elo <<Sistema Legado>>
+
+' ─── Sistema ──────────────────────────────────────────────
+rectangle "Gateway Webhook (.NET 8)" {
+
+    usecase "Marcar Presença" as UC1
+    usecase "Listar Marcações\nde Assiduidade" as UC2
+    usecase "Consultar Ajuda" as UC3
+    usecase "Confirmar Ação\n(Sim / Não)" as UC4
+
+    usecase "Autenticar\nMensagem" as UC5
+    usecase "Detetar Idioma\n(PT/EN/FR/ES)" as UC6
+    usecase "Codificar / Descodificar\nBase64" as UC7
+    usecase "Normalizar Texto\nda Mensagem" as UC8
+
+    ' ─── Relações entre Casos de Uso ──────────────────────
+    UC1 ..> UC4 : <<include>>
+    UC1 ..> UC5 : <<include>>
+    UC1 ..> UC7 : <<include>>
+    UC1 ..> UC6 : <<include>>
+
+    UC2 ..> UC5 : <<include>>
+    UC2 ..> UC7 : <<include>>
+    UC2 ..> UC6 : <<include>>
+
+    UC3 ..> UC6 : <<include>>
+
+    UC1 ..> UC8 : <<include>>
+    UC2 ..> UC8 : <<include>>
+    UC3 ..> UC8 : <<include>>
+}
+
+' ─── Ligações Ator → Caso de Uso ─────────────────────────
+user -- UC1
+user -- UC2
+user -- UC3
+
+whatsapp -- UC1
+whatsapp -- UC2
+whatsapp -- UC3
+
+teams -- UC1
+teams -- UC2
+teams -- UC3
+
+UC1 -- elo
+UC2 -- elo
+
+@enduml
