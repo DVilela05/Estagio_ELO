@@ -2,77 +2,38 @@
 skinparam backgroundColor #FFFFFF
 skinparam shadowing false
 skinparam defaultFontName "Segoe UI"
-skinparam packageStyle rectangle
-skinparam componentFontSize 11
+skinparam rectangleFontSize 13
+skinparam componentFontSize 12
+skinparam noteFontSize 11
+left to right direction
 
-title Vista Lógica — Nível 2 (Diagrama de Containers)
+title Vista Lógica — Nível 2 (Diagrama de Contentores)
 
-' ─── Sistemas Externos ────────────────────────────────────
-rectangle "WhatsApp Cloud API" as wa_ext #D5F5E3
-rectangle "Microsoft Bot Framework" as teams_ext #D6EAF8
-rectangle "ELO Web Service (WCF)" as elo_ext #FADBD8
+' Atores
+actor "Colaborador" as user
 
-' ─── Gateway Webhook (.NET 8) ─────────────────────────────
-package "Gateway Webhook (.NET 8)" #FCF3CF {
+' Sistemas Externos
+rectangle "WhatsApp Cloud API\n[Sistema Externo]" as wa_ext #D5F5E3
+rectangle "Microsoft Teams\n[Sistema Externo]" as teams_ext #D6EAF8
 
-    package "Api Layer" #FDEBD0 {
-        component "WebhookController" as ctrl
-        component "Middleware Pipeline\n(Security, Rate Limit,\nCorrelation, Exceptions)" as middleware
-        component "Webhook Parsers\n(WhatsApp / Teams)" as parsers
-    }
-
-    package "Application Layer" #E8DAEF {
-        component "MessageProcessingService\n(Anti-Spam, Confirmações,\nDeduplicação)" as mps
-    }
-
-    package "Core Layer" #D5F5E3 {
-        component "CommandRouter" as router
-        component "PresencaCommandHandler" as presCmd
-        component "ListagemMarcacoesCommandHandler" as listCmd
-        component "HelpCommandHandler" as helpCmd
-        component "BotLocalizer\n(i18n — Dicionários em Memória)" as localizer
-    }
-
-    package "Infrastructure Layer" #D6EAF8 {
-        component "WebServiceUtils\n(HTTP Client → WCF)" as wsUtils
-        component "WhatsAppService\n(Envio de respostas)" as waSvc
-        component "TeamsService\n(Envio de respostas)" as teamsSvc
-        component "MessagingServiceFactory" as factory
-    }
-
-    package "Resources" #F2F3F4 {
-        component "Messages_PT\nMessages_EN\nMessages_FR\nMessages_ES" as msgs
-    }
+' Sistema Interno da ELO
+package "Infraestrutura Empresarial" {
+    rectangle "Webhook Gateway\n(.NET 8 / Kestrel)\n\n[Contentor]" as gateway #FCF3CF
+    rectangle "ELO Web Service\n(.NET FW 4.8 / IIS)\n\n[Contentor]" as elo_ext #FADBD8
+    database "Base de Dados RH\n(SQL Server)\n\n[Contentor]" as db #EAECEE
 }
 
-' ─── Fluxo ────────────────────────────────────────────────
-wa_ext -down-> middleware : "HTTP POST"
-teams_ext -down-> middleware : "HTTP POST"
+' Relações
+user --> wa_ext : "Mensagem"
+user --> teams_ext : "Mensagem"
 
-middleware -down-> ctrl
-ctrl -down-> parsers : "Parse JSON"
-parsers -down-> mps : "IncomingMessage"
+wa_ext --> gateway : "Webhook POST\n(JSON + HMAC)"
+teams_ext --> gateway : "Webhook POST\n(JSON + JWT)"
 
-mps -down-> router : "RouteAsync()"
-router -down-> presCmd
-router -down-> listCmd
-router -down-> helpCmd
+gateway --> elo_ext : "HTTP POST\n(REST / Base64)"
+elo_ext --> db : "Leitura/Escrita\nTransações SQL"
 
-presCmd -down-> wsUtils : "metaim1 (Base64)"
-listCmd -down-> wsUtils : "metalm1 (Base64)"
-
-presCmd --> localizer
-listCmd --> localizer
-helpCmd --> localizer
-localizer --> msgs
-
-wsUtils -down-> elo_ext : "HTTP POST (REST)"
-
-mps -right-> factory : "GetService(platform)"
-factory -right-> waSvc
-factory -right-> teamsSvc
-
-waSvc -up-> wa_ext : "Enviar resposta"
-teamsSvc -up-> teams_ext : "Enviar resposta"
+gateway --> wa_ext : "HTTP POST\n(Resposta ao Utilizador)"
+gateway --> teams_ext : "HTTP POST\n(Resposta ao Utilizador)"
 
 @enduml

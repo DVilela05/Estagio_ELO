@@ -1,0 +1,56 @@
+@startuml vista_logica_n3_componentes
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam packageStyle rectangle
+skinparam componentFontSize 11
+
+title Vista Lógica — Nível 3 (Componentes do Webhook Gateway)
+
+' ─── Sistemas Externos ────────────────────────────────────
+rectangle "WhatsApp / Teams\n[APIs Externas]" as apis_ext #D5F5E3
+rectangle "ELO Web Service\n[Sistema Legado]" as elo_ext #FADBD8
+
+' ─── Gateway Webhook (.NET 8) ─────────────────────────────
+package "Webhook Gateway (.NET 8)" #FCF3CF {
+
+    package "Api Layer" #FDEBD0 {
+        component "Controladores HTTP" as ctrl
+        component "Pipeline de Middleware\n(Segurança, Rate Limit, Erros)" as middleware
+        component "Módulos de Interpretação\n(Parsers JSON)" as parsers
+    }
+
+    package "Application Layer" #E8DAEF {
+        component "Serviço Central de Processamento\n(Anti-Spam, Confirmações,\nDeduplicação)" as mps
+    }
+
+    package "Core Layer" #D5F5E3 {
+        component "Componente de Encaminhamento\n(Router)" as router
+        component "Handlers de Comando\n(Presença, Listagem, Ajuda)" as handlers
+        component "Módulo de Internacionalização\n(i18n)" as localizer
+    }
+
+    package "Infrastructure Layer" #D6EAF8 {
+        component "Cliente HTTP\n(Chamadas REST ao ERP)" as wsUtils
+        component "Serviços de Envio de Resposta\n(WhatsApp / Teams)" as msgSvcs
+    }
+}
+
+' ─── Fluxo Principal ──────────────────────────────────────
+apis_ext -down-> middleware : "HTTP POST"
+middleware -down-> ctrl
+ctrl -down-> parsers : "Payload JSON"
+parsers -down-> mps : "Modelo Universal"
+
+mps -down-> router : "Mensagem Normalizada"
+router -down-> handlers : "Executar Ação"
+
+handlers --> localizer : "Obter Tradução"
+handlers --> wsUtils : "Parâmetro Base64"
+
+wsUtils -down-> elo_ext : "HTTP POST"
+
+mps -right-> msgSvcs : "Resposta Traduzida"
+msgSvcs -up-> apis_ext : "HTTP POST (Reply)"
+
+@enduml
