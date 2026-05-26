@@ -292,11 +292,6 @@ namespace WebApplication1.Core.Commands
 
                 return true;
             }
-            else
-            {
-                validationError = _localizer.Get("Listagem_InvalidFormat", lang) ?? "⚠️ Formato inválido. Por favor, insere apenas uma ou duas datas.";
-                return false;
-            }
         }
 
         /// <summary>
