@@ -316,6 +316,20 @@ namespace WebApplication1.Core.Commands
 
                 _logger.LogInformation("📡 Resposta decodificada do Web Service de férias: {Response}", responseDecoded);
 
+                string cleanResponse = responseDecoded.Trim().ToUpperInvariant();
+
+                // 1. Verificar Erros de Segurança do Token (HMAC)
+                if (cleanResponse.Contains("INVALID_FORMAT") || 
+                    cleanResponse.Contains("INVALID_TIMESTAMP") || 
+                    cleanResponse.Contains("EXPIRED") || 
+                    cleanResponse.Contains("FUTURE_TOKEN") || 
+                    cleanResponse.Contains("INVALID_SIGNATURE") ||
+                    cleanResponse.Contains("UNEXPECTED_ERROR"))
+                {
+                    _logger.LogWarning("❌ Erro de segurança no Token do WCF: {Erro}", responseDecoded);
+                    return _localizer.Get("Token_SecurityError", lang) ?? "Acesso negado: Falha na validação de segurança (Token inválido ou expirado).";
+                }
+
                 // Tratar os códigos de resposta do WCF para férias
                 if (responseDecoded.Trim() == "INVALID_YEAR")
                 {
@@ -348,10 +362,16 @@ namespace WebApplication1.Core.Commands
         /// </summary>
         private string BuildFeriasResponse(string decodedResponse, int year, IncomingMessage message, SupportedLanguage? lang)
         {
+            // Tentar obter o título traduzido. Se não existir, usamos um fallback limpo e direto.
+            string title = _localizer.Get("Ferias_Title", lang);
+            if (title.StartsWith("[") || title == "Ferias_Title") 
+            {
+                title = $"🏖️ *Férias {year}*";
+            }
+
             var lines = new List<string>
             {
-                _localizer.Get("Ferias_Title", lang) ?? "🏖️ *Listagem de Férias*",
-                (_localizer.Get("Ferias_Year", lang) ?? "📅 Ano:") + $" {year}",
+                title,
                 "──────────",
                 ""
             };
@@ -373,7 +393,9 @@ namespace WebApplication1.Core.Commands
                     string obs = parts[9];
                     string diasStr = parts[10];
 
-                    if (double.TryParse(diasStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dias))
+                    // Substituir a vírgula por ponto para o InvariantCulture não a interpretar como separador de milhares
+                    string diasFormatado = diasStr.Replace(",", ".");
+                    if (double.TryParse(diasFormatado, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dias))
                     {
                         totalDiasAno += dias;
                     }
@@ -381,7 +403,7 @@ namespace WebApplication1.Core.Commands
                     // Determinar o emoji baseado no estado
                     string estadoLower = estado.ToLowerInvariant();
                     string emoji = "📝"; // Default
-                    if (estadoLower.Contains("aprov") || estadoLower.Contains("confirm") || estadoLower.Contains("aceite")) emoji = "✅";
+                    if (estadoLower.Contains("aprov") || estadoLower.Contains("confirm") || estadoLower.Contains("aceite") || estadoLower.Contains("gozad")) emoji = "✅";
                     else if (estadoLower.Contains("pendente") || estadoLower.Contains("aguarda")) emoji = "⏳";
                     else if (estadoLower.Contains("rejeit") || estadoLower.Contains("cancel")) emoji = "❌";
 

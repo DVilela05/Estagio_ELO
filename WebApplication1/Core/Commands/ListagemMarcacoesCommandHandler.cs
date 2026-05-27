@@ -432,6 +432,18 @@ namespace WebApplication1.Core.Commands
 
                 string cleanResponse = responseDecoded.Trim().ToUpperInvariant();
 
+                // 1. Verificar Erros de Segurança do Token (HMAC)
+                if (cleanResponse.Contains("INVALID_FORMAT") || 
+                    cleanResponse.Contains("INVALID_TIMESTAMP") || 
+                    cleanResponse.Contains("EXPIRED") || 
+                    cleanResponse.Contains("FUTURE_TOKEN") || 
+                    cleanResponse.Contains("INVALID_SIGNATURE") ||
+                    cleanResponse.Contains("UNEXPECTED_ERROR"))
+                {
+                    _logger.LogWarning("❌ Erro de segurança no Token do WCF: {Erro}", responseDecoded);
+                    return _localizer.Get("Token_SecurityError", lang) ?? "Acesso negado: Falha na validação de segurança (Token inválido ou expirado).";
+                }
+
                 if (cleanResponse == "ERROR|UNKNOWNAPI")
                 {
                     _logger.LogWarning("⚠️ API desconhecida enviada para o WCF ({Response})", responseDecoded);
