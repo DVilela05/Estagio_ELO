@@ -31,6 +31,10 @@ namespace WebApplication1.Resources
                 "minhas marcações|minhas marcacoes|ver assiduidade|assiduidade|" +
                 "listar assiduidade|listar de assiduidade",
 
+            ["Ferias_Triggers"] =
+                "férias|ferias|ver férias|ver ferias|listar férias|listar ferias|" +
+                "minhas férias|minhas ferias|consultar férias|consultar ferias",
+
             ["Help_Triggers"] = "ajuda|help",
 
             // Tokens de confirmação (sim/não)
@@ -127,6 +131,33 @@ namespace WebApplication1.Resources
             ["Day_Friday"] = "Sexta-feira",
             ["Day_Saturday"] = "Sábado",
             ["Day_Sunday"] = "Domingo",
+
+            // ═══════════════════════════════════════════════════════════════
+            // LISTAGEM DE FÉRIAS — fluxo completo
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Ferias_CommandName"] = "listagem_ferias",
+            ["Ferias_Description"] = "Consultar as tuas férias para um determinado ano",
+
+            ["Ferias_Expired"] = "⚠️ O pedido anterior expirou. Por favor, escreve *férias* para recomeçar.",
+            ["Ferias_ConfirmYear"] = "Confirmas que pretendes consultar as tuas férias para o ano de *{0}*? (sim/não)",
+            ["Ferias_Cancelled"] = "❌ Pedido de consulta de férias cancelado. Se precisares de ajuda, escreve *ajuda*.",
+            ["Ferias_AskYear"] =
+                "Para qual ano pretendes consultar as férias? Indica o ano (ex: *2025*, *2026*).\\n\\n" +
+                "💡 _Dica: Podes escrever 'cancelar' ou 'sair' para anulares o pedido._",
+
+            // Erros de extração do ano
+            ["Ferias_EmptyInput"] = "⚠️ O texto enviado está vazio.",
+            ["Ferias_InvalidYear"] = "⚠️ Não consegui identificar um ano válido.",
+            ["Ferias_YearRetryHelp"] =
+                "\\n\\nPor favor, indica o ano pretendido (ex: *2025*, *2026*).\\n\\n" +
+                "💡 _Dica: Podes escrever 'cancelar' ou 'sair' para anulares o pedido._",
+
+            // Erros de WebService
+            ["Ferias_ErrorGeneric"] = "❌ Ocorreu um erro ao consultar as férias. Tenta novamente mais tarde.",
+
+            // Resposta temporária (enquanto o WCF não está disponível)
+            ["Ferias_Placeholder"] = "🏖️ A funcionalidade de consulta de férias para o ano *{0}* será disponibilizada em breve. Fica atento!",
 
             // ═══════════════════════════════════════════════════════════════
             // AJUDA — menu de comandos

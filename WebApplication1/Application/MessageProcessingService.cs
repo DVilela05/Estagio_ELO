@@ -591,10 +591,11 @@ namespace WebApplication1.Application
                 commandName = matchedHandler.CommandName;
             }
 
-            // Comandos administrativos, de ajuda ou de listagem de marcações não pedem confirmação
+            // Comandos administrativos, de ajuda, de listagem de marcações ou de férias não pedem confirmação
             bool bypassConfirmation = commandName.StartsWith("admin", StringComparison.OrdinalIgnoreCase)
                 || commandName.Equals("ajuda", StringComparison.OrdinalIgnoreCase)
-                || commandName.Equals("listagem_marcações", StringComparison.OrdinalIgnoreCase);
+                || commandName.Equals("listagem_marcações", StringComparison.OrdinalIgnoreCase)
+                || commandName.Equals("listagem_ferias", StringComparison.OrdinalIgnoreCase);
 
             if (bypassConfirmation && matchedHandler != null)
             {

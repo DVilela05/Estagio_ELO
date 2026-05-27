@@ -22,6 +22,10 @@ namespace WebApplication1.Resources
                 "liste pointages|liste présences|lister pointages|lister présences|" +
                 "mes pointages|mes présences|voir assiduité|assiduité",
 
+            ["Ferias_Triggers"] =
+                "vacances|congés|conges|voir vacances|voir congés|voir conges|" +
+                "lister vacances|lister congés|lister conges|mes vacances|mes congés|mes conges",
+
             ["Help_Triggers"] = "aide|help|commandes",
 
             ["YesTokens"] = "oui|o|yes|y",
@@ -113,6 +117,30 @@ namespace WebApplication1.Resources
             ["Day_Friday"] = "Vendredi",
             ["Day_Saturday"] = "Samedi",
             ["Day_Sunday"] = "Dimanche",
+
+            // ═══════════════════════════════════════════════════════════════
+            // LISTE DES VACANCES
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Ferias_CommandName"] = "liste_vacances",
+            ["Ferias_Description"] = "Consulter vos vacances pour une année donnée",
+
+            ["Ferias_Expired"] = "⚠️ La demande précédente a expiré. Veuillez taper *vacances* pour recommencer.",
+            ["Ferias_ConfirmYear"] = "Confirmez-vous vouloir consulter vos vacances pour l'année *{0}* ? (oui/non)",
+            ["Ferias_Cancelled"] = "❌ Demande de consultation de vacances annulée. Si vous avez besoin d'aide, tapez *aide*.",
+            ["Ferias_AskYear"] =
+                "Pour quelle année souhaitez-vous consulter les vacances ? Indiquez l'année (ex : *2025*, *2026*).\n\n" +
+                "💡 _Astuce : Vous pouvez écrire 'annuler' ou 'quitter' pour annuler la demande._",
+
+            ["Ferias_EmptyInput"] = "⚠️ Le texte envoyé est vide.",
+            ["Ferias_InvalidYear"] = "⚠️ Je n'ai pas pu identifier une année valide.",
+            ["Ferias_YearRetryHelp"] =
+                "\n\nVeuillez indiquer l'année souhaitée (ex : *2025*, *2026*).\n\n" +
+                "💡 _Astuce : Vous pouvez écrire 'annuler' ou 'quitter' pour annuler la demande._",
+
+            ["Ferias_ErrorGeneric"] = "❌ Une erreur s'est produite lors de la consultation des vacances. Veuillez réessayer plus tard.",
+
+            ["Ferias_Placeholder"] = "🏖️ La fonctionnalité de consultation de vacances pour l'année *{0}* sera bientôt disponible. Restez à l'écoute !",
 
             // ═══════════════════════════════════════════════════════════════
             // AJUDA

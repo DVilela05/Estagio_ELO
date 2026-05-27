@@ -22,6 +22,10 @@ namespace WebApplication1.Resources
                 "listar asistencia|listar registros|mis registros|mi asistencia|" +
                 "listado de asistencia|listado asistencia",
 
+            ["Ferias_Triggers"] =
+                "vacaciones|ver vacaciones|listar vacaciones|" +
+                "mis vacaciones|consultar vacaciones|días libres|dias libres",
+
             ["Help_Triggers"] = "ayuda|help|comandos",
 
             ["YesTokens"] = "sí|si|s|yes|y",
@@ -113,6 +117,30 @@ namespace WebApplication1.Resources
             ["Day_Friday"] = "Viernes",
             ["Day_Saturday"] = "Sábado",
             ["Day_Sunday"] = "Domingo",
+
+            // ═══════════════════════════════════════════════════════════════
+            // LISTADO DE VACACIONES
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Ferias_CommandName"] = "listado_vacaciones",
+            ["Ferias_Description"] = "Consultar tus vacaciones para un año determinado",
+
+            ["Ferias_Expired"] = "⚠️ La solicitud anterior ha expirado. Por favor, escribe *vacaciones* para empezar de nuevo.",
+            ["Ferias_ConfirmYear"] = "¿Confirmas que quieres consultar tus vacaciones para el año *{0}*? (sí/no)",
+            ["Ferias_Cancelled"] = "❌ Solicitud de consulta de vacaciones cancelada. Si necesitas ayuda, escribe *ayuda*.",
+            ["Ferias_AskYear"] =
+                "¿Para qué año quieres consultar las vacaciones? Indica el año (ej: *2025*, *2026*).\n\n" +
+                "💡 _Consejo: Puedes escribir 'cancelar' o 'salir' para anular la solicitud._",
+
+            ["Ferias_EmptyInput"] = "⚠️ El texto enviado está vacío.",
+            ["Ferias_InvalidYear"] = "⚠️ No pude identificar un año válido.",
+            ["Ferias_YearRetryHelp"] =
+                "\n\nPor favor, indica el año deseado (ej: *2025*, *2026*).\n\n" +
+                "💡 _Consejo: Puedes escribir 'cancelar' o 'salir' para anular la solicitud._",
+
+            ["Ferias_ErrorGeneric"] = "❌ Ocurrió un error al consultar las vacaciones. Inténtalo de nuevo más tarde.",
+
+            ["Ferias_Placeholder"] = "🏖️ La funcionalidad de consulta de vacaciones para el año *{0}* estará disponible pronto. ¡Permanece atento!",
 
             // ═══════════════════════════════════════════════════════════════
             // AYUDA

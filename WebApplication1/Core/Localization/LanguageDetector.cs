@@ -102,7 +102,7 @@ namespace WebApplication1.Core.Localization
             string normalizedText = text.Trim().ToLowerInvariant();
 
             // Verificar triggers de cada comando
-            string[] commandKeys = { "Presence", "Listagem", "Help" };
+            string[] commandKeys = { "Presence", "Listagem", "Ferias", "Help" };
 
             foreach (var cmdKey in commandKeys)
             {

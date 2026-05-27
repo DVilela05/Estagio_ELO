@@ -22,6 +22,10 @@ namespace WebApplication1.Resources
                 "list attendance|list records|my attendance|my records|" +
                 "attendance list|attendance listing",
 
+            ["Ferias_Triggers"] =
+                "vacations|vacation|holidays|view vacations|view holidays|" +
+                "list vacations|list holidays|my vacations|my holidays",
+
             ["Help_Triggers"] = "help|commands|menu",
 
             ["YesTokens"] = "yes|y",
@@ -113,6 +117,30 @@ namespace WebApplication1.Resources
             ["Day_Friday"] = "Friday",
             ["Day_Saturday"] = "Saturday",
             ["Day_Sunday"] = "Sunday",
+
+            // ═══════════════════════════════════════════════════════════════
+            // VACATION LISTING
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Ferias_CommandName"] = "vacation_listing",
+            ["Ferias_Description"] = "View your vacations for a given year",
+
+            ["Ferias_Expired"] = "⚠️ The previous request has expired. Please type *vacations* to start again.",
+            ["Ferias_ConfirmYear"] = "Do you confirm you want to view your vacations for the year *{0}*? (yes/no)",
+            ["Ferias_Cancelled"] = "❌ Vacation listing cancelled. If you need help, type *help*.",
+            ["Ferias_AskYear"] =
+                "Which year do you want to check your vacations for? Enter the year (e.g. *2025*, *2026*).\n\n" +
+                "💡 _Tip: You can write 'cancel' or 'exit' to cancel the request._",
+
+            ["Ferias_EmptyInput"] = "⚠️ The message text is empty.",
+            ["Ferias_InvalidYear"] = "⚠️ I couldn't identify a valid year.",
+            ["Ferias_YearRetryHelp"] =
+                "\n\nPlease enter the desired year (e.g. *2025*, *2026*).\n\n" +
+                "💡 _Tip: You can write 'cancel' or 'exit' to cancel the request._",
+
+            ["Ferias_ErrorGeneric"] = "❌ An error occurred while fetching the vacations. Please try again later.",
+
+            ["Ferias_Placeholder"] = "🏖️ The vacation listing feature for the year *{0}* will be available soon. Stay tuned!",
 
             // ═══════════════════════════════════════════════════════════════
             // AJUDA
