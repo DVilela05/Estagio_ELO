@@ -95,8 +95,9 @@ namespace WebApplication1.Core.Commands
             try
             {
                 // ─── Construir parâmetro para metaim1: TOKEN|NumTelefone|mensagem ───
-                string token = "Diogo";
-                
+                //string token = "Diogo";
+                string token = _tokenService.GenerateToken(state.OriginalMessage.Platform == MessagePlatform.Teams ? state.OriginalMessage.UserEmail : state.OriginalMessage.From);
+
                 // TODO: Para usar o token seguro e dinâmico, descomentar a linha abaixo e remover o token "Diogo"
                 // string token = _tokenService.GenerateToken(message.Platform == MessagePlatform.Teams ? message.UserEmail : message.From);
                 // Determina a API e os dados do utilizador com base na plataforma
