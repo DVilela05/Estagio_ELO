@@ -1,0 +1,46 @@
+@startuml sequencia_consultar_ferias_parte1
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Consultar Férias (Parte 1: Trigger Inicial e Pedido de Ano)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "ListagemFerias\nCommandHandler" as ferCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Etapa 1: Trigger Inicial ─────────────────────────────
+
+user -> api : Envia "férias"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> mps : ProcessMessageAsync(msg)
+
+note over mps
+  Férias não requer confirmação
+  → execução direta (bypass)
+end note
+
+mps -> router : RouteAsync(msg)
+router -> ferCmd : ExecuteAsync(msg)
+
+ferCmd -> ferCmd : Detetar idioma pelo trigger
+ferCmd -> ferCmd : Criar PendingFeriasState\n(estado = AwaitingYear)
+
+ferCmd -> localizer : Get("Ferias_AskYear", lang)
+localizer --> ferCmd : "Para qual ano queres consultar?"
+
+ferCmd --> mps : resposta
+mps -> msgSvc : SendTextMessage(resposta)
+msgSvc -> api : HTTP POST
+api -> user : "Para qual ano pretendes\nconsultar as férias?"
+
+@enduml

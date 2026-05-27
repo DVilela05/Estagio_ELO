@@ -44,7 +44,7 @@ entity "CthMarcacoesLG\n(Marcações de Assiduidade)" as MRC {
     * **UIMarcacao** : guid <<PK>>
     --
     * UIFuncionario : guid <<FK>>
-    * CdTerminal : int <<FK>>
+    * CdTerminal : nvarchar <<FK>>
     **DtHrMarcacao** : datetime
     DtMarcacao : date
     HrMarcacao : time
@@ -59,6 +59,7 @@ entity "CthMarcacoesLG\n(Marcações de Assiduidade)" as MRC {
 entity "AqdEquipamentos\n(Terminais / Equipamentos)" as EQP {
     * **UIEquipamento** : guid <<PK>>
     --
+    **Endereco** : nvarchar
     DsEquipamento : nvarchar
     TpEquipamento : nvarchar
     DeviceID : nvarchar
@@ -66,9 +67,25 @@ entity "AqdEquipamentos\n(Terminais / Equipamentos)" as EQP {
     .. (outros campos) ..
 }
 
+entity "ngmobilewslog\n(Logs do Web Service)" as LOG {
+    * **UIWsLogKey** : guid <<PK>>
+    --
+    UIEmpRede : guid
+    APISource : int
+    Source : nvarchar
+    Mensagem : nvarchar
+    Action : nvarchar
+    DtHrRegisto : datetime
+    * UIRcsHumano : guid <<FK>>
+    * UIUser : guid <<FK>>
+    CdUser : nvarchar
+}
+
 ' ─── Relações ─────────────────────────────────────────────
 UTL ||--|| RCS : "1:1\nUIUser = UIUtilizador"
 RCS ||--o{ MRC : "1:N\nUIRcsHumano = UIFuncionario"
-EQP ||--o{ MRC : "1:N\nUIEquipamento ↔ CdTerminal"
+EQP ||--o{ MRC : "1:N\nEndereco = CdTerminal"
+UTL ||--o{ LOG : "1:N\nUIUser"
+RCS ||--o{ LOG : "1:N\nUIRcsHumano"
 
 @enduml

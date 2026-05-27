@@ -1,0 +1,51 @@
+@startuml sequencia_marcar_presenca_parte1
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Marcar Presença (Parte 1: Receção e Confirmação)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "WebhookParser" as parser <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Fluxo Principal ──────────────────────────────────────
+
+user -> api : Envia "presente"
+api -> ctrl : HTTP POST (Webhook)
+
+note over ctrl
+  Middleware: Validação HMAC/JWT
+  + Rate Limiting + Deduplicação
+end note
+
+ctrl -> parser : ParseMessages(json)
+parser --> ctrl : IncomingMessage
+
+ctrl -> mps : ProcessMessageAsync(msg, service)
+
+mps -> mps : NormalizeText(body)
+mps -> mps : MarkAsRead(messageId)
+mps -> mps : Filtros Anti-Spam\n(SentAt, Lock, Dedup)
+
+mps -> router : IsValidCommand(msg)
+router --> mps : true (comando "presença")
+
+note over mps
+  Cria PendingConfirmation
+  e guarda em memória
+end note
+
+mps -> msgSvc : SendTextMessage(confirmação)
+msgSvc -> api : HTTP POST
+api -> user : "Pedir confirmação:\nDeseja marcar presença? (sim/não)"
+
+@enduml

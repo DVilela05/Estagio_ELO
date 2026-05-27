@@ -1,0 +1,68 @@
+@startuml sequencia_listar_marcacoes_parte3
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Listar Marcações (Parte 3: Execução e Resposta)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "ListagemMarcacoes\nCommandHandler" as listCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "WebServiceUtils" as ws <<Infrastructure>>
+participant "ELO WCF\n(metalm1)" as elo <<Sistema Legado>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Etapa 3: Confirmação ─────────────────────────────────
+
+user -> api : Envia "sim"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> mps : ProcessMessageAsync(msg)
+mps -> router : RouteAsync(msg)
+router -> listCmd : ExecuteAsync(msg)
+
+listCmd -> listCmd : Estado = AwaitingConfirmation
+listCmd -> listCmd : IsYes("sim") → true
+
+listCmd -> listCmd : ProcessListagemAsync()
+
+listCmd -> listCmd : Construir parâmetro:\nTOKEN|apiType|telefone|\nlistagem|data|email|\nnQueryType|dateStart|dateEnd
+
+listCmd -> listCmd : Codificar → Base64
+
+listCmd -> ws : WCFRESTServiceCall(\n"POST", "metalm1", base64)
+
+ws -> elo : HTTP POST (REST)\nBody: "base64string"
+
+note over elo #FADBD8
+  1. Descodificar Base64
+  2. Validar utilizador
+  3. Consultar marcações\n   na BD para o período
+  4. Devolver lista codificada
+end note
+
+elo --> ws : Resposta Base64\n(ex: "12/06/2026 08:30|\n12/06/2026 12:30|...")
+
+ws --> listCmd : rawResponse
+
+listCmd -> listCmd : Base64Decode(response)
+listCmd -> listCmd : Verificar erros de negócio\n(INVALID_STARTDATETIME,\nNO_TIME_BOOKINGS, etc.)
+
+listCmd -> listCmd : ParseRealMarkingsList()\nAgrupar por dia,\nformatar como lista
+
+listCmd -> localizer : Get("Listagem_MockTitle", lang)
+localizer --> listCmd : "Listagem de Marcações"
+
+listCmd --> mps : resposta formatada
+mps -> msgSvc : SendTextMessage(resposta)
+msgSvc -> api : HTTP POST
+api -> user : "📅 Listagem de Marcações\n📆 Período: 12/06 a 16/06\n──────────\n• 12/06 (Qui):\n   📥 08:30\n   📤 12:30\n   📥 13:30\n   📤 17:30\n..."
+
+@enduml

@@ -1,0 +1,77 @@
+@startuml sequencia_marcar_presenca_parte2
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Marcar Presença (Parte 2: Execução e Resposta)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "WebhookParser" as parser <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "PresencaCommand\nHandler" as presCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "WebServiceUtils" as ws <<Infrastructure>>
+participant "ELO WCF\n(metaim1)" as elo <<Sistema Legado>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Confirmação do Utilizador ────────────────────────────
+
+user -> api : Envia "sim"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> parser : ParseMessages(json)
+parser --> ctrl : IncomingMessage
+ctrl -> mps : ProcessMessageAsync(msg, service)
+
+mps -> mps : Verificar PendingConfirmation
+mps -> mps : IsYes("sim") → true
+
+mps -> router : RouteAsync(originalMessage)
+router -> presCmd : ExecuteAsync(msg)
+
+presCmd -> presCmd : Construir parâmetro:\nTOKEN|apiType|telefone|\nmensagem|data|email
+
+presCmd -> presCmd : Codificar → Base64
+
+presCmd -> ws : WCFRESTServiceCall(\n"POST", "metaim1", base64)
+
+note over ws
+  Polly: Retry 3x
+  Backoff: 1s → 2s → 4s
+end note
+
+ws -> elo : HTTP POST (REST)\nBody: "base64string"
+
+note over elo #FADBD8
+  1. Descodificar Base64
+  2. Validar token
+  3. CheckValidUserByPhoneNumber()
+  4. Converter UTC → TimeZone local
+  5. saveBooking() → BD
+end note
+
+elo --> ws : Resposta Base64\n(ex: "OK|0")
+
+ws --> presCmd : rawResponse
+
+presCmd -> presCmd : Base64Decode(response)
+presCmd -> presCmd : Analisar resposta:\n"OK|0" → Sucesso
+
+presCmd -> localizer : Get("Presence_Success", lang)
+localizer --> presCmd : "Presença registada!"
+
+presCmd --> router : resposta traduzida
+router --> mps : resposta
+
+mps -> msgSvc : SendTextMessageAsync(\nto, resposta, replyTo)
+
+msgSvc -> api : HTTP POST (resposta)
+api -> user : "✅ Presença registada!"
+
+@enduml

@@ -1,0 +1,46 @@
+@startuml sequencia_listar_marcacoes_parte1
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Listar Marcações (Parte 1: Trigger e Pedido de Período)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "ListagemMarcacoes\nCommandHandler" as listCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Etapa 1: Trigger Inicial ─────────────────────────────
+
+user -> api : Envia "listar marcações"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> mps : ProcessMessageAsync(msg)
+
+note over mps
+  Listagem não requer confirmação
+  → execução direta (bypass)
+end note
+
+mps -> router : RouteAsync(msg)
+router -> listCmd : ExecuteAsync(msg)
+
+listCmd -> listCmd : Detetar idioma pelo trigger
+listCmd -> listCmd : Criar PendingPeriodState\n(estado = AwaitingPeriod)
+
+listCmd -> localizer : Get("Listagem_AskPeriod", lang)
+localizer --> listCmd : "Que período queres consultar?\n(ex: hoje, 01/06/2026 a 07/06/2026)"
+
+listCmd --> mps : resposta
+mps -> msgSvc : SendTextMessage(resposta)
+msgSvc -> api : HTTP POST
+api -> user : "Que período queres consultar?"
+
+@enduml

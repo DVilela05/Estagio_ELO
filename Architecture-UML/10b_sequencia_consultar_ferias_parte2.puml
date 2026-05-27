@@ -1,0 +1,49 @@
+@startuml sequencia_consultar_ferias_parte2
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Consultar Férias (Parte 2: Extração de Ano e Confirmação)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "ListagemFerias\nCommandHandler" as ferCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Etapa 2: Utilizador indica o ano ─────────────────────
+
+user -> api : Envia "2026"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> mps : ProcessMessageAsync(msg)
+mps -> router : RouteAsync(msg)
+router -> ferCmd : ExecuteAsync(msg)
+
+ferCmd -> ferCmd : Estado = AwaitingYear
+ferCmd -> ferCmd : TryExtractYear("2026")
+
+note over ferCmd
+  Regex: \b(20\d{2})\b
+  Extrai ano de 4 dígitos
+  no intervalo 20XX
+end note
+
+ferCmd -> ferCmd : Ano extraído: 2026
+ferCmd -> ferCmd : Estado → AwaitingConfirmation
+
+ferCmd -> localizer : Get("Ferias_ConfirmYear",\nlang, "2026")
+localizer --> ferCmd : "Confirmas férias para\no ano 2026? (sim/não)"
+
+ferCmd --> mps : resposta
+mps -> msgSvc : SendTextMessage(resposta)
+msgSvc -> api : HTTP POST
+api -> user : "Confirmas? (sim/não)"
+
+@enduml

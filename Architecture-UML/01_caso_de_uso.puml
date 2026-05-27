@@ -17,6 +17,7 @@ rectangle "Gateway Webhook " {
 
     usecase "Marcar Presença" as UC1
     usecase "Listar Marcações\nde Assiduidade" as UC2
+    usecase "Consultar Férias" as UC9
     usecase "Consultar Ajuda" as UC3
     usecase "Confirmar Ação\n(Sim / Não)" as UC4
 
@@ -35,16 +36,22 @@ rectangle "Gateway Webhook " {
     UC2 ..> UC7 : <<include>>
     UC2 ..> UC6 : <<include>>
 
+    UC9 ..> UC5 : <<include>>
+    UC9 ..> UC7 : <<include>>
+    UC9 ..> UC6 : <<include>>
+
     UC3 ..> UC6 : <<include>>
 
     UC1 ..> UC8 : <<include>>
     UC2 ..> UC8 : <<include>>
+    UC9 ..> UC8 : <<include>>
     UC3 ..> UC8 : <<include>>
 }
 
 ' ─── Ligações Ator → Caso de Uso ─────────────────────────
 user -- UC1
 user -- UC2
+user -- UC9
 user -- UC3
 
 

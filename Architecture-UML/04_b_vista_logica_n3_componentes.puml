@@ -4,6 +4,7 @@ skinparam shadowing false
 skinparam defaultFontName "Segoe UI"
 skinparam packageStyle rectangle
 skinparam componentFontSize 11
+left to right direction
 
 title Vista Lógica — Nível 3 (Componentes do Webhook Gateway)
 
@@ -26,8 +27,9 @@ package "Webhook Gateway (.NET 8)" #FCF3CF {
 
     package "Core Layer" #D5F5E3 {
         component "Componente de Encaminhamento\n(Router)" as router
-        component "Handlers de Comando\n(Presença, Listagem, Ajuda)" as handlers
+        component "Handlers de Comando\n(Presença, Listagem Marcações,\nListagem Férias, Ajuda)" as handlers
         component "Módulo de Internacionalização\n(i18n)" as localizer
+        component "Serviço de Token\n(HMAC-SHA256)" as tokenSvc
     }
 
     package "Infrastructure Layer" #D6EAF8 {
@@ -37,20 +39,21 @@ package "Webhook Gateway (.NET 8)" #FCF3CF {
 }
 
 ' ─── Fluxo Principal ──────────────────────────────────────
-apis_ext -down-> middleware : "HTTP POST"
-middleware -down-> ctrl
-ctrl -down-> parsers : "Payload JSON"
-parsers -down-> mps : "Modelo Universal"
+apis_ext --> middleware : "HTTP POST"
+middleware --> ctrl
+ctrl --> parsers : "Payload JSON"
+parsers --> mps : "Modelo Universal"
 
-mps -down-> router : "Mensagem Normalizada"
-router -down-> handlers : "Executar Ação"
+mps --> router : "Mensagem Normalizada"
+router --> handlers : "Executar Ação"
 
 handlers --> localizer : "Obter Tradução"
+handlers --> tokenSvc : "Gerar Token"
 handlers --> wsUtils : "Parâmetro Base64"
 
-wsUtils -down-> elo_ext : "HTTP POST"
+wsUtils --> elo_ext : "HTTP POST"
 
-mps -right-> msgSvcs : "Resposta Traduzida"
-msgSvcs -up-> apis_ext : "HTTP POST (Reply)"
+mps --> msgSvcs : "Resposta Traduzida"
+msgSvcs --> apis_ext : "HTTP POST (Reply)"
 
 @enduml

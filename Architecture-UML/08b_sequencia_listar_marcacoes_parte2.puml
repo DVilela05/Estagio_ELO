@@ -1,0 +1,52 @@
+@startuml sequencia_listar_marcacoes_parte2
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Listar Marcações (Parte 2: Validação de Datas e Confirmação)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "ListagemMarcacoes\nCommandHandler" as listCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Etapa 2: Utilizador indica as datas ──────────────────
+
+user -> api : Envia "12/06/2026 16/06/2026"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> mps : ProcessMessageAsync(msg)
+mps -> router : RouteAsync(msg)
+router -> listCmd : ExecuteAsync(msg)
+
+listCmd -> listCmd : Estado = AwaitingPeriod
+listCmd -> listCmd : TryExtractPeriod(texto)
+
+note over listCmd
+  1. Verificar cancelar/sair
+  2. Detetar "hoje"/"ontem"
+  3. Extrair datas via regex
+  4. Normalizar (01 em vez de 1)
+  5. Validar formato estrito
+  6. Validar período ≤ 7 dias
+end note
+
+listCmd -> listCmd : Datas extraídas:\n12/06/2026 → 16/06/2026
+listCmd -> listCmd : Estado → AwaitingConfirmation
+
+listCmd -> localizer : Get("Listagem_ConfirmRange",\nlang, "12/06/2026", "16/06/2026")
+localizer --> listCmd : "Confirma período\n12/06/2026 a 16/06/2026? (sim/não)"
+
+listCmd --> mps : resposta
+mps -> msgSvc : SendTextMessage(resposta)
+msgSvc -> api : HTTP POST
+api -> user : "Confirma? (sim/não)"
+
+@enduml

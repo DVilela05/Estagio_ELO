@@ -1,0 +1,63 @@
+@startuml sequencia_consultar_ferias_parte3
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Consultar Férias (Parte 3: Execução e Resposta)
+
+actor "Colaborador" as user
+participant "WhatsApp /\nTeams" as api <<API>>
+participant "WebhookController" as ctrl <<Api Layer>>
+participant "MessageProcessing\nService" as mps <<Application>>
+participant "CommandRouter" as router <<Core>>
+participant "ListagemFerias\nCommandHandler" as ferCmd <<Core>>
+participant "BotLocalizer" as localizer <<Core>>
+participant "WebServiceUtils" as ws <<Infrastructure>>
+participant "ELO WCF\n(metafr1)" as elo <<Sistema Legado>>
+participant "IMessagingService" as msgSvc <<Infrastructure>>
+
+' ─── Etapa 3: Confirmação ─────────────────────────────────
+
+user -> api : Envia "sim"
+api -> ctrl : HTTP POST (Webhook)
+ctrl -> mps : ProcessMessageAsync(msg)
+mps -> router : RouteAsync(msg)
+router -> ferCmd : ExecuteAsync(msg)
+
+ferCmd -> ferCmd : Estado = AwaitingConfirmation
+ferCmd -> ferCmd : IsYes("sim") → true
+
+ferCmd -> ferCmd : ProcessFeriasAsync()
+
+ferCmd -> ferCmd : Construir parâmetro:\nTOKEN|apiType|telefone|\nferias|data|email|ano
+
+ferCmd -> ferCmd : Codificar → Base64
+
+ferCmd -> ws : WCFRESTServiceCall(\n"POST", "metafr1", base64)
+
+ws -> elo : HTTP POST (REST)\nBody: "base64string"
+
+note over elo #FADBD8
+  1. Descodificar Base64
+  2. Validar utilizador
+  3. Consultar férias\n   do ano na BD
+  4. Devolver lista codificada
+end note
+
+elo --> ws : Resposta Base64
+
+ws --> ferCmd : rawResponse
+
+ferCmd -> ferCmd : Base64Decode(response)
+ferCmd -> ferCmd : Formatar resposta
+
+ferCmd --> mps : resposta formatada
+mps -> msgSvc : SendTextMessage(resposta)
+msgSvc -> api : HTTP POST
+api -> user : "🏖️ Férias para 2026..."
+
+@enduml

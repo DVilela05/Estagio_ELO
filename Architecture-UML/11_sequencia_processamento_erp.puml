@@ -1,0 +1,90 @@
+@startuml sequencia_processamento_erp
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+skinparam sequenceParticipantFontSize 11
+skinparam sequenceMessageFontSize 11
+
+title Diagrama de Sequência — Processamento Geral no Web Service (Lado Empresa)
+
+participant "Webhook\nGateway" as gw <<Gateway>>
+participant "Web Service\n(metaim1 / metalm1\n/ metafr1)" as ws <<WCF>>
+participant "AuthData\nInterpreter" as decoder <<WCF>>
+participant "Authenticator" as auth <<WCF>>
+database "UtlGuUsers\n(Utilizadores)" as usr <<BD>>
+database "RcsHumanos\n(Recursos Humanos)" as rh <<BD>>
+participant "Módulo de Ação\n(Booking / Listagem\n/ Férias)" as action <<WCF>>
+database "CthMarcacoesLG\n(Marcações)" as mrc <<BD>>
+database "ngmobilewslog\n(Logs)" as logs <<BD>>
+
+' ─── Fluxo de Processamento ───────────────────────────────
+
+gw -> ws : HTTP POST\n(parâmetro Base64)
+
+ws -> decoder : decodeMetaAPIMessage(input)
+
+note over decoder
+  Extrair campos do Base64:
+  • authToken
+  • strNumTelefone
+  • strMsg (corpo da mensagem)
+  • dtHr (timestamp UTC)
+end note
+
+decoder --> ws : authToken, telefone,\nmensagem, timestamp
+
+' ─── Validação de Campos ─────────────────────────────────
+
+alt Campos vazios ou inválidos
+    ws --> gw : EncodeErrorResponse\n("EMPTYVALUES")
+end
+
+' ─── Resolução de Identidade ─────────────────────────────
+
+ws -> auth : CheckValidUserByPhoneNumber\n(authToken, strNumTelefone)
+
+auth -> rh : Pesquisar por telefone\nou email
+rh --> auth : UIRcsHumano,\nCdRcsHumano,\nTimeZoneID
+
+auth -> usr : Validar credenciais\nativas (UIUser)
+usr --> auth : CdUser, UIUser
+
+alt Colaborador não encontrado (lrError)
+    auth --> ws : LoginResult = Error
+    ws --> gw : EncodeErrorResponse\n("LOGINERROR_lrError")
+else Colaborador encontrado (lrOk)
+    auth --> ws : LoginResult = OK\n+ cdUser, uiRcsHumano,\nstrTimeZoneID
+end
+
+' ─── Conversão de Fuso Horário ────────────────────────────
+
+ws -> ws : FindSystemTimeZoneById\n(strTimeZoneID)
+ws -> ws : ConvertTimeFromUtc\n(dtHr, timezone)\n→ Data/hora local
+
+' ─── Execução da Ação Específica ──────────────────────────
+
+ws -> action : Executar ação pretendida
+
+note over action
+  Depende do método invocado:
+  • metaim1 → saveBooking()
+  • metalm1 → getBookings()
+  • metafr1 → getVacations()
+end note
+
+action -> mrc : Leitura / Escrita na BD
+mrc --> action : Resultado
+
+action --> ws : Resultado da operação
+
+' ─── Registo de Log ───────────────────────────────────────
+
+ws -> logs : Inserir registo\n(UIEmpRede, APISource,\nSource, Action,\nUIRcsHumano, UIUser)
+
+' ─── Resposta ao Gateway ─────────────────────────────────
+
+ws --> gw : EncodeSuccessResponse\n(resultado codificado Base64)
+
+@enduml

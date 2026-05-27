@@ -5,18 +5,20 @@ skinparam defaultFontName "Segoe UI"
 skinparam rectangleFontSize 13
 skinparam componentFontSize 12
 skinparam noteFontSize 11
-left to right direction
+top to bottom direction
 
 title Vista Lógica — Nível 2 (Diagrama de Contentores)
 
-' Atores
+' Atores e Plataformas (em cima)
 actor "Colaborador" as user
 
-' Sistemas Externos
 rectangle "WhatsApp Cloud API\n[Sistema Externo]" as wa_ext #D5F5E3
 rectangle "Microsoft Teams\n[Sistema Externo]" as teams_ext #D6EAF8
 
-' Sistema Interno da ELO
+user --> wa_ext : "Mensagem"
+user --> teams_ext : "Mensagem"
+
+' Sistema Interno (em baixo)
 package "Infraestrutura Empresarial" {
     rectangle "Webhook Gateway\n(.NET 8 / Kestrel)\n\n[Contentor]" as gateway #FCF3CF
     rectangle "ELO Web Service\n(.NET FW 4.8 / IIS)\n\n[Contentor]" as elo_ext #FADBD8
@@ -24,9 +26,6 @@ package "Infraestrutura Empresarial" {
 }
 
 ' Relações
-user --> wa_ext : "Mensagem"
-user --> teams_ext : "Mensagem"
-
 wa_ext --> gateway : "Webhook POST\n(JSON + HMAC)"
 teams_ext --> gateway : "Webhook POST\n(JSON + JWT)"
 

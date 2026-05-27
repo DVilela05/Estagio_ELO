@@ -71,6 +71,23 @@ PendingConfirmation --> IncomingMessage : mensagem original
 PendingPeriodState --> IncomingMessage : mensagem original
 
 IncomingMessage ..> Booking : origina\n(após validação)
+IncomingMessage ..> ConsultaFerias : origina\n(após validação)
+
+class PendingFeriasState {
+    + OriginalMessage : IncomingMessage
+    + CurrentState : FeriasState
+    + SelectedYear : int
+    + DetectedLanguage : SupportedLanguage?
+    + Attempts : int
+    + CreatedAt : DateTime
+}
+
+class ConsultaFerias <<ELO Legacy>> {
+    + UIRcsHumano : Guid
+    + Ano : int
+}
+
+PendingFeriasState --> IncomingMessage : mensagem original
 
 note bottom of Booking
   Entidade do sistema ELO.
@@ -82,6 +99,12 @@ note bottom of PendingPeriodState
   Estado temporário em memória.
   Gere o fluxo multi-mensagem
   da listagem de marcações.
+end note
+
+note bottom of PendingFeriasState
+  Estado temporário em memória.
+  Gere o fluxo multi-mensagem
+  da consulta de férias.
 end note
 
 @enduml
