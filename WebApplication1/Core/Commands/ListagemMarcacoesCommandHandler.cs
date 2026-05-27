@@ -359,7 +359,7 @@ namespace WebApplication1.Core.Commands
             try
             {
                 //string token = "Diogo";
-                string token = _tokenService.GenerateToken(state.OriginalMessage.Platform == MessagePlatform.Teams ? state.OriginalMessage.UserEmail : state.OriginalMessage.From);
+                string token = _tokenService.GenerateToken(state.OriginalMessage.Platform == MessagePlatform.Teams ? (state.OriginalMessage.UserEmail ?? "") : state.OriginalMessage.From);
 
                 // TODO: Para usar o token seguro e dinâmico, descomentar a linha abaixo e remover o token "Diogo"
                 // string token = _tokenService.GenerateToken(state.OriginalMessage.Platform == MessagePlatform.Teams ? state.OriginalMessage.UserEmail : state.OriginalMessage.From);
