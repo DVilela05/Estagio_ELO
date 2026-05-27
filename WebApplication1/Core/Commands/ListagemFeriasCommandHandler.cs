@@ -274,18 +274,9 @@ namespace WebApplication1.Core.Commands
             _logger.LogInformation("Histórico processado com sucesso: {Log}", mensagensProcessadasLog);
 
             // ─── CHAMADA DO WEB SERVICE WCF ───
-            // ╔══════════════════════════════════════════════════════════════╗
-            // ║  QUANDO O ENDPOINT DE FÉRIAS ESTIVER PRONTO NO SERVIDOR:   ║
-            // ║                                                            ║
-            // ║  1. Descomentar o bloco /* ... */ abaixo (linhas do WCF)   ║
-            // ║  2. Descomentar o método BuildFeriasResponse() mais abaixo ║
-            // ║  3. APAGAR as 3 linhas marcadas com "REMOVER"              ║
-            // ║  4. Ajustar o nome do método WCF ("metafr1") se necessário ║
-            // ║  5. Ajustar o token se necessário                          ║
-            // ╚══════════════════════════════════════════════════════════════╝
             try
             {
-                /*  ←── DESCOMENTAR: remover esta linha
+                // Token antigo para usar enquanto a empresa não ativa o HMAC-SHA256
                 string token = "Diogo";
                 
                 // TODO: Para usar o token seguro e dinâmico, descomentar a linha abaixo e remover o token "Diogo"
@@ -311,7 +302,7 @@ namespace WebApplication1.Core.Commands
 
                 // Chamar o endpoint de férias (ajustar o nome do método quando disponível)
                 string rawResponse = await WebServiceUtils.WCFRESTServiceCall(
-                    "POST", "metafr1", bodyParaEnviar, _logger, _wsSettings.BaseUrl);
+                    "POST", "metalf1", bodyParaEnviar, _logger, _wsSettings.BaseUrl);
 
                 if (rawResponse.StartsWith("EXCEPTION|"))
                 {
@@ -325,17 +316,25 @@ namespace WebApplication1.Core.Commands
 
                 _logger.LogInformation("📡 Resposta decodificada do Web Service de férias: {Response}", responseDecoded);
 
-                // TODO: Tratar os códigos de resposta do WCF para férias (igual ao PresencaCommandHandler)
-                // TODO: Fazer parse da resposta e construir a mensagem de férias formatada
+                // Tratar os códigos de resposta do WCF para férias
+                if (responseDecoded.Trim() == "INVALID_YEAR")
+                {
+                    return _localizer.Get("Ferias_InvalidYear", lang) ?? $"O ano {year} não é válido para consulta.";
+                }
 
+                if (responseDecoded.Trim() == "NO_HOLIDAYS")
+                {
+                    return _localizer.Get("Ferias_NoHolidays", lang) ?? $"Não foram encontrados registos de férias para o ano {year}.";
+                }
+
+                if (responseDecoded.StartsWith("LOGINERROR") || responseDecoded.StartsWith("EMPTYVALUES") || responseDecoded.StartsWith("ERROR|"))
+                {
+                    _logger.LogWarning("❌ Erro de validação/login no WCF: {Erro}", responseDecoded);
+                    return _localizer.Get("Listagem_ErrorNoMarkings", lang) ?? "Ocorreu um erro ao validar os teus dados."; 
+                }
+
+                // Fazer parse da resposta e construir a mensagem de férias formatada
                 return BuildFeriasResponse(responseDecoded, year, state.OriginalMessage, lang);
-                */  // ←── DESCOMENTAR: remover esta linha
-
-                // ╔══════════════════════════════════════════════════════════╗
-                // ║  REMOVER: apagar estas 3 linhas quando ativar o WCF    ║
-                // ╚══════════════════════════════════════════════════════════╝
-                await Task.CompletedTask; // REMOVER
-                return _localizer.Get("Ferias_Placeholder", lang, year.ToString()); // REMOVER
             }
             catch (Exception ex)
             {
@@ -344,36 +343,64 @@ namespace WebApplication1.Core.Commands
             }
         }
 
-        // ╔══════════════════════════════════════════════════════════════╗
-        // ║  DESCOMENTAR: remover o /* e o */ quando ativar o WCF       ║
-        // ║  (corresponde ao passo 2 das instruções acima)              ║
-        // ╚══════════════════════════════════════════════════════════════╝
-        /*
         /// <summary>
         /// Faz o parse da string recebida do WebService e constrói a listagem de férias formatada.
-        /// TODO: Implementar quando o formato de resposta do WCF for definido.
         /// </summary>
         private string BuildFeriasResponse(string decodedResponse, int year, IncomingMessage message, SupportedLanguage? lang)
         {
-            string userName = string.IsNullOrWhiteSpace(message.UserName)
-                ? _localizer.Get("Ferias_DefaultUser", lang)
-                : message.UserName;
-
             var lines = new List<string>
             {
-                _localizer.Get("Ferias_Title", lang),
-                _localizer.Get("Ferias_Year", lang, year.ToString()),
-                _localizer.Get("Ferias_Separator", lang),
+                _localizer.Get("Ferias_Title", lang) ?? "🏖️ *Listagem de Férias*",
+                (_localizer.Get("Ferias_Year", lang) ?? "📅 Ano:") + $" {year}",
+                "──────────",
                 ""
             };
 
-            // TODO: Parse da resposta do WCF e construção das linhas de férias
-            // Formato esperado: a definir com a equipa do ERP
+            var registos = decodedResponse.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            double totalDiasAno = 0;
 
-            lines.Add(_localizer.Get("Ferias_Separator", lang));
+            foreach (var registo in registos)
+            {
+                var parts = registo.Split('|');
+                // Formato esperado (11 colunas):
+                // 0:IdTabela | 1:UIRcsHumano | 2:NomeAbreviado | 3:DsSegmento | 4:Inicio | 5:Fim | 6:Estado | 7:CdSegmento | 8:CdPedido | 9:Obs | 10:TotalDias
+                if (parts.Length >= 11)
+                {
+                    string tipo = parts[3];
+                    string inicio = parts[4];
+                    string fim = parts[5];
+                    string estado = parts[6];
+                    string obs = parts[9];
+                    string diasStr = parts[10];
+
+                    if (double.TryParse(diasStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dias))
+                    {
+                        totalDiasAno += dias;
+                    }
+
+                    // Determinar o emoji baseado no estado
+                    string estadoLower = estado.ToLowerInvariant();
+                    string emoji = "📝"; // Default
+                    if (estadoLower.Contains("aprov") || estadoLower.Contains("confirm") || estadoLower.Contains("aceite")) emoji = "✅";
+                    else if (estadoLower.Contains("pendente") || estadoLower.Contains("aguarda")) emoji = "⏳";
+                    else if (estadoLower.Contains("rejeit") || estadoLower.Contains("cancel")) emoji = "❌";
+
+                    lines.Add($"{emoji} *{tipo}*");
+                    lines.Add($"   🗓️ {inicio} a {fim} ({diasStr} dias)");
+                    lines.Add($"   📌 Estado: {estado}");
+                    if (!string.IsNullOrWhiteSpace(obs) && obs.Trim() != "-")
+                    {
+                        lines.Add($"   💬 Obs: {obs}");
+                    }
+                    lines.Add(""); // Espaço entre registos
+                }
+            }
+
+            lines.Add("──────────");
+            lines.Add($"📊 *Total de dias agendados:* {totalDiasAno:0.0}");
+
             return string.Join("\n", lines);
         }
-        */
 
         // Classe auxiliar para manter o estado pendente
         private sealed class PendingFeriasState
