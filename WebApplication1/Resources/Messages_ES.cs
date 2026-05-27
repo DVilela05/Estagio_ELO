@@ -221,6 +221,14 @@ namespace WebApplication1.Resources
             ["Unknown_6"] = "📭 Mensaje no soportado.\n\nEscribe *ayuda* para ver los comandos que acepto.",
 
             ["MultiLang_Hint"] = "Escribe *ayuda*",
+            // ═══════════════════════════════════════════════════════════════
+            // ERRORES DE SEGURIDAD Y VALIDACIÓN
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Token_SecurityError"] = "Acceso denegado: Falló la validación de seguridad (Token inválido o caducado).",
+            ["Error_NoPermission"] = "Acceso denegado: No tienes permisos para usar esta función.",
+            ["Error_UserNotFound"] = "No se pudo encontrar tu registro de empleado en el sistema.",
+            ["Error_MultipleUsers"] = "Hay varios empleados asociados a este contacto. Por favor, contacta con RRHH.",
         });
     }
 }

@@ -225,6 +225,15 @@ namespace WebApplication1.Resources
             // ═══════════════════════════════════════════════════════════════
 
             ["MultiLang_Hint"] = "Type *help*",
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECURITY AND USER VALIDATION ERRORS
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Token_SecurityError"] = "Access denied: Security validation failed (Invalid or expired token).",
+            ["Error_NoPermission"] = "Access denied: You do not have permission to use this feature.",
+            ["Error_UserNotFound"] = "Could not find your employee record in the system.",
+            ["Error_MultipleUsers"] = "There are multiple employees associated with this contact. Please reach out to HR.",
         });
     }
 }

@@ -242,6 +242,15 @@ namespace WebApplication1.Resources
             // ═══════════════════════════════════════════════════════════════
 
             ["MultiLang_Hint"] = "Escreve *ajuda*",
+
+            // ═══════════════════════════════════════════════════════════════
+            // ERROS DE SEGURANÇA E VALIDAÇÃO DE UTILIZADOR
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Token_SecurityError"] = "Acesso negado: Falha na validação de segurança (Token inválido ou expirado).",
+            ["Error_NoPermission"] = "Acesso negado: Não tens permissões para utilizar esta funcionalidade.",
+            ["Error_UserNotFound"] = "Não foi possível encontrar o teu registo de colaborador no sistema.",
+            ["Error_MultipleUsers"] = "Existem múltiplos colaboradores associados a este contacto. Por favor, contacta os Recursos Humanos.",
         });
     }
 }

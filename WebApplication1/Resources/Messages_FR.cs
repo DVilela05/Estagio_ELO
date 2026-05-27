@@ -221,6 +221,14 @@ namespace WebApplication1.Resources
             ["Unknown_6"] = "📭 Message non pris en charge.\n\nTapez *aide* pour voir les commandes acceptées.",
 
             ["MultiLang_Hint"] = "Tapez *aide*",
+            // ═══════════════════════════════════════════════════════════════
+            // ERREURS DE SÉCURITÉ ET DE VALIDATION
+            // ═══════════════════════════════════════════════════════════════
+
+            ["Token_SecurityError"] = "Accès refusé : Échec de la validation de sécurité (Jeton invalide ou expiré).",
+            ["Error_NoPermission"] = "Accès refusé : Vous n'avez pas l'autorisation d'utiliser cette fonctionnalité.",
+            ["Error_UserNotFound"] = "Impossible de trouver votre dossier d'employé dans le système.",
+            ["Error_MultipleUsers"] = "Plusieurs employés sont associés à ce contact. Veuillez contacter les RH.",
         });
     }
 }

@@ -445,6 +445,24 @@ namespace WebApplication1.Core.Commands
                     return _localizer.Get("Token_SecurityError", lang) ?? "Acesso negado: Falha na validação de segurança (Token inválido ou expirado).";
                 }
 
+                if (cleanResponse.Contains("LOGINERROR_NO_PERMISSION"))
+                {
+                    _logger.LogWarning("❌ Sem permissões para a funcionalidade de marcações: {Erro}", responseDecoded);
+                    return _localizer.Get("Error_NoPermission", lang) ?? "Acesso negado: Não tens permissões para utilizar esta funcionalidade.";
+                }
+
+                if (cleanResponse.Contains("USER_NOT_FOUND") || cleanResponse.Contains("LOGINERROR_USERNOTFOUND"))
+                {
+                    _logger.LogWarning("❌ Utilizador não encontrado: {Erro}", responseDecoded);
+                    return _localizer.Get("Error_UserNotFound", lang) ?? "Não foi possível encontrar o teu registo de colaborador no sistema.";
+                }
+
+                if (cleanResponse.Contains("MULTIPLE_USERS"))
+                {
+                    _logger.LogWarning("❌ Múltiplos utilizadores: {Erro}", responseDecoded);
+                    return _localizer.Get("Error_MultipleUsers", lang) ?? "Existem múltiplos colaboradores associados a este contacto. Por favor, contacta os RH.";
+                }
+
                 if (cleanResponse == "ERROR|UNKNOWNAPI")
                 {
                     _logger.LogWarning("⚠️ API desconhecida enviada para o WCF ({Response})", responseDecoded);
