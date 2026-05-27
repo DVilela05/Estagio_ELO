@@ -141,6 +141,7 @@ builder.Services.AddScoped<ICommandHandler, AdminCommandHandler>();
 builder.Services.AddScoped<ICommandHandler, ListagemMarcacoesCommandHandler>();
 builder.Services.AddScoped<ICommandHandler, ListagemFeriasCommandHandler>();
 // ↑ Adiciona novos comandos aqui ↑
+builder.Services.AddScoped<WebApplication1.Core.Interfaces.ITokenService, WebApplication1.Infrastructure.Security.TokenService>();
 builder.Services.AddScoped<CommandRouter>();
 
 // ─── Serviço de processamento de mensagens ───────────────────────────────────

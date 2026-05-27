@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using WebApplication1.Core.Interfaces;
 
 namespace WebApplication1.Core.Commands
 {
@@ -32,6 +33,7 @@ namespace WebApplication1.Core.Commands
 
         // ─── Mapa de triggers → língua (construído a partir dos recursos) ──
         private readonly Dictionary<string, SupportedLanguage> _triggerMap;
+        private readonly ITokenService _tokenService;
 
         private enum ListagemState
         {
@@ -42,11 +44,13 @@ namespace WebApplication1.Core.Commands
         public ListagemMarcacoesCommandHandler(
             IOptions<WebServiceSettings> wsOptions,
             ILogger<ListagemMarcacoesCommandHandler> logger,
-            IBotLocalizer localizer)
+            IBotLocalizer localizer,
+            ITokenService tokenService)
         {
             _wsSettings = wsOptions.Value;
             _logger = logger;
             _localizer = localizer;
+            _tokenService = tokenService;
             _triggerMap = localizer.GetAllTriggers("Listagem");
         }
 
@@ -355,6 +359,10 @@ namespace WebApplication1.Core.Commands
             try
             {
                 string token = "Diogo";
+                
+                // TODO: Para usar o token seguro e dinâmico, descomentar a linha abaixo e remover o token "Diogo"
+                // string token = _tokenService.GenerateToken(state.OriginalMessage.Platform == MessagePlatform.Teams ? state.OriginalMessage.UserEmail : state.OriginalMessage.From);
+                
                 IncomingMessage message = state.OriginalMessage; // Necessário porque message não existe neste scope
                 int apiType = message.Platform == MessagePlatform.Teams ? 2 : 1;
                 string numTelefone = message.Platform == MessagePlatform.WhatsApp ? message.From : "";
