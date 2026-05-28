@@ -9,30 +9,38 @@ top to bottom direction
 
 title Vista Lógica — Nível 2 (Diagrama de Contentores)
 
-' Atores e Plataformas (em cima)
+' ─── Atores e sistemas externos (fora da fronteira) ─────────────────
 actor "Colaborador" as user
 
-rectangle "WhatsApp Cloud API\n[Sistema Externo]" as wa_ext #D5F5E3
-rectangle "Microsoft Teams\n[Sistema Externo]" as teams_ext #D6EAF8
+rectangle "WhatsApp Cloud API\n(Meta Platforms)\n[Sistema Externo]" as wa_ext #D5F5E3
+rectangle "Microsoft Bot Framework\n(Microsoft / Teams)\n[Sistema Externo]" as teams_ext #D6EAF8
 
-user --> wa_ext : "Mensagem"
-user --> teams_ext : "Mensagem"
+user -right-> wa_ext
+user -right-> teams_ext
 
-' Sistema Interno (em baixo)
-package "Infraestrutura Empresarial" {
-    rectangle "Webhook Gateway\n(.NET 8 / Kestrel)\n\n[Contentor]" as gateway #FCF3CF
-    rectangle "ELO Web Service\n(.NET FW 4.8 / IIS)\n\n[Contentor]" as elo_ext #FADBD8
-    database "Base de Dados RH\n(SQL Server)\n\n[Contentor]" as db #EAECEE
+' ─── Fronteira do Sistema ELO ───────────────────────────────────────
+package "Infraestrutura ELO [Sistema]" #FFFFF0 {
+
+    ' ─── Zona Exposta (DMZ) ─────────────────────────────────────────
+    package "Zona Exposta (Internet)" #FCF3CF {
+        rectangle "Webhook Gateway\n[Contentor: ASP.NET Core 8]\nAloja os controladores HTTP,\no pipeline de segurança\ne os handlers de comando." as gateway #FCF3CF
+    }
+
+    ' ─── Zona Interna ───────────────────────────────────────────────
+    package "Rede Interna (Intranet)" #FADBD8 {
+        rectangle "ELO Web Service\n[Contentor: .NET FW 4.8 / WCF]\nCentraliza a lógica de negócio\ne a bridge com a base de dados." as elo_ws #FADBD8
+        database "Base de Dados Corporativa\n[Contentor: SQL Server]\nPersistência de Marcações,\nRecursos Humanos e Logs." as db #EAECEE
+    }
 }
 
-' Relações
-wa_ext --> gateway : "Webhook POST\n(JSON + HMAC)"
-teams_ext --> gateway : "Webhook POST\n(JSON + JWT)"
+' ─── Fluxo de Comunicação ───────────────────────────────────────────
+wa_ext     -down-> gateway  : "HTTPS / JSON\n+ HMAC-SHA256"
+teams_ext  -down-> gateway  : "HTTPS / JSON\n+ JWT (Bot Framework)"
 
-gateway --> elo_ext : "HTTP POST\n(REST / Base64)"
-elo_ext --> db : "Leitura/Escrita\nTransações SQL"
+gateway    -down-> elo_ws   : "HTTP REST\nParâmetro em Base64"
+elo_ws     -down-> db       : "SQL\n(leitura / escrita)"
 
-gateway --> wa_ext : "HTTP POST\n(Resposta ao Utilizador)"
-gateway --> teams_ext : "HTTP POST\n(Resposta ao Utilizador)"
+gateway    -up->  wa_ext    : "HTTPS POST\n(resposta ao utilizador)"
+gateway    -up->  teams_ext : "HTTPS POST\n(Reply Activity)"
 
 @enduml

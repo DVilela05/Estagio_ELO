@@ -4,7 +4,7 @@ skinparam shadowing false
 skinparam defaultFontName "Segoe UI"
 skinparam packageStyle rectangle
 skinparam componentFontSize 11
-left to right direction
+top to bottom direction
 
 title Vista Lógica — Nível 3 (Componentes do Webhook Gateway)
 
@@ -39,21 +39,21 @@ package "Webhook Gateway (.NET 8)" #FCF3CF {
 }
 
 ' ─── Fluxo Principal ──────────────────────────────────────
-apis_ext --> middleware : "HTTP POST"
-middleware --> ctrl
-ctrl --> parsers : "Payload JSON"
-parsers --> mps : "Modelo Universal"
+apis_ext -down-> middleware : "HTTP POST"
+middleware -down-> ctrl
+ctrl -down-> parsers : "Payload JSON"
+parsers -down-> mps : "Modelo Universal"
 
-mps --> router : "Mensagem Normalizada"
-router --> handlers : "Executar Ação"
+mps -down-> router : "Mensagem Normalizada"
+router -down-> handlers : "Executar Ação"
 
-handlers --> localizer : "Obter Tradução"
-handlers --> tokenSvc : "Gerar Token"
-handlers --> wsUtils : "Parâmetro Base64"
+handlers -right-> localizer : "Obter Tradução"
+handlers -right-> tokenSvc : "Gerar Token"
+handlers -down-> wsUtils : "Parâmetro Base64"
 
-wsUtils --> elo_ext : "HTTP POST"
+wsUtils -down-> elo_ext : "HTTP POST"
 
-mps --> msgSvcs : "Resposta Traduzida"
-msgSvcs --> apis_ext : "HTTP POST (Reply)"
+mps -right-> msgSvcs : "Resposta Traduzida"
+msgSvcs -up-> apis_ext : "HTTP POST (Reply)"
 
 @enduml

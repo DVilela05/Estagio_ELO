@@ -67,7 +67,7 @@ entity "AqdEquipamentos\n(Terminais / Equipamentos)" as EQP {
     .. (outros campos) ..
 }
 
-entity "ngmobilewslog\n(Logs do Web Service)" as LOG {
+entity "UtlAPIIntegrationToolLog\n(Logs do Web Service)" as LOG {
     * **UIWsLogKey** : guid <<PK>>
     --
     UIEmpRede : guid
