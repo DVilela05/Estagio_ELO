@@ -17,7 +17,7 @@ participant "CommandRouter" as router <<Core>>
 participant "ListagemFerias\nCommandHandler" as ferCmd <<Core>>
 participant "BotLocalizer" as localizer <<Core>>
 participant "WebServiceUtils" as ws <<Infrastructure>>
-participant "ELO WCF\n(metafr1)" as elo <<Sistema Legado>>
+participant "ELO WCF\n(metalf1)" as elo <<Sistema Legado>>
 participant "IMessagingService" as msgSvc <<Infrastructure>>
 
 ' ─── Etapa 3: Confirmação ─────────────────────────────────

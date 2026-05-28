@@ -10,7 +10,7 @@ skinparam sequenceMessageFontSize 11
 title Diagrama de Sequência — Processamento Geral no Web Service (Lado Empresa)
 
 participant "Webhook\nGateway" as gw <<Gateway>>
-participant "Web Service\n(metaim1 / metalm1\n/ metafr1)" as ws <<WCF>>
+participant "Web Service\n(metaim1 / metalm1\n/ metalf1)" as ws <<WCF>>
 participant "AuthData\nInterpreter" as decoder <<WCF>>
 participant "Authenticator" as auth <<WCF>>
 database "UtlGuUsers\n(Utilizadores)" as usr <<BD>>
