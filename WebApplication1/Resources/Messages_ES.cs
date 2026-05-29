@@ -18,7 +18,7 @@ namespace WebApplication1.Resources
                 "asistencia|estoy aquí|estoy aqui|llegué|llegue|he llegado",
 
             ["Listagem_Triggers"] =
-                "ver asistencia|ver registros|registros de asistencia|registros|" +
+                "ver asistencia|ver registros|registros de asistencia|" +
                 "listar asistencia|listar registros|mis registros|mi asistencia|" +
                 "listado de asistencia|listado asistencia",
 

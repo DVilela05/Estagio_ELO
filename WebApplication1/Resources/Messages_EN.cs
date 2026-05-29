@@ -18,7 +18,7 @@ namespace WebApplication1.Resources
                 "i'm here|im here|here|arrived",
 
             ["Listagem_Triggers"] =
-                "view attendance|view records|attendance records|records|" +
+                "view attendance|view records|attendance records|" +
                 "list attendance|list records|my attendance|my records|" +
                 "attendance list|attendance listing",
 
