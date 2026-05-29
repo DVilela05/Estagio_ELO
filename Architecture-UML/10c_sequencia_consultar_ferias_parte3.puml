@@ -35,24 +35,25 @@ ferCmd -> ferCmd : ProcessFeriasAsync()
 
 ferCmd -> ferCmd : Construir parâmetro:\nTOKEN|apiType|telefone|\nferias|data|email|ano
 
-ferCmd -> ferCmd : Codificar → Base64
+ferCmd -> ferCmd : Codificar parâmetro
 
-ferCmd -> ws : WCFRESTServiceCall(\n"POST", "metafr1", base64)
+ferCmd -> ws : WCFRESTServiceCall(\n"POST", "metalf1", paramCodificado)
 
-ws -> elo : HTTP POST (REST)\nBody: "base64string"
+ws -> elo : HTTP POST (REST)\nBody: parâmetro codificado
 
 note over elo #FADBD8
-  1. Descodificar Base64
+  1. Descodificar parâmetro
   2. Validar utilizador
-  3. Consultar férias\n   do ano na BD
-  4. Devolver lista codificada
+  3. Consultar férias
+     do ano na BD
+  4. Devolver resposta codificada
 end note
 
-elo --> ws : Resposta Base64
+elo --> ws : Resposta codificada
 
 ws --> ferCmd : rawResponse
 
-ferCmd -> ferCmd : Base64Decode(response)
+ferCmd -> ferCmd : Descodificar resposta
 ferCmd -> ferCmd : Formatar resposta
 
 ferCmd --> mps : resposta formatada

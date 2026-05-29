@@ -18,19 +18,22 @@ database "Base de Dados\n(SQL Server)" as db <<BD>>
 
 ' ─── Fluxo de Processamento ───────────────────────────────
 
-gw -> ws : HTTP POST\n(parâmetro Base64)
+gw -> ws : HTTP POST\n(parâmetro codificado)
 
 ws -> decoder : decodeMetaAPIMessage(input)
 
 note over decoder
-  Extrair campos do Base64:
+  Descodificar e extrair campos:
   • authToken
+  • tipoAPI
   • strNumTelefone
+  • strEmail
   • strMsg (corpo da mensagem)
   • dtHr (timestamp UTC)
+  • ...
 end note
 
-decoder --> ws : authToken, telefone,\nmensagem, timestamp
+decoder --> ws : authToken, tipoAPI,\ntelefone, email,\nmensagem, timestamp, ...
 
 ' ─── Validação de Campos ─────────────────────────────────
 
@@ -40,7 +43,7 @@ end
 
 ' ─── Resolução de Identidade ─────────────────────────────
 
-ws -> auth : CheckValidUserByPhoneNumber\n(authToken, strNumTelefone)
+ws -> auth : CheckValidUserByPhoneNumber\n(authToken, tipoAPI,\nstrNumTelefone, strEmail, ...)
 
 auth -> db : Pesquisar colaborador\n(RcsHumanos — por telefone ou email)
 db --> auth : UIRcsHumano, CdRcsHumano, TimeZoneID
@@ -82,6 +85,6 @@ ws -> db : Inserir registo de auditoria\n(UtlAPIIntegrationToolLog —\nUIEmpRed
 
 ' ─── Resposta ao Gateway ─────────────────────────────────
 
-ws --> gw : EncodeSuccessResponse\n(resultado codificado Base64)
+ws --> gw : Resposta codificada
 
 @enduml

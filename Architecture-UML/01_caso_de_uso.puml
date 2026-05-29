@@ -27,7 +27,7 @@ rectangle "Gateway Webhook" {
     usecase "Confirmar Ação\n(Sim / Não)" as UC4
     usecase "Autenticar\nMensagem" as UC5
     usecase "Detetar Idioma\n(PT/EN/FR/ES)" as UC6
-    usecase "Codificar /\nDescodificar Base64" as UC7
+    usecase "Codificar /\nDescodificar Dados" as UC7
     usecase "Normalizar Texto\nda Mensagem" as UC8
 
     ' ─── Ordenação vertical das colunas ────────────────────

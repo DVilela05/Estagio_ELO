@@ -37,7 +37,7 @@ package "Infraestrutura ELO [Sistema]" #FFFFF0 {
 wa_ext     -down-> gateway  : "HTTPS / JSON\n+ HMAC-SHA256"
 teams_ext  -down-> gateway  : "HTTPS / JSON\n+ JWT (Bot Framework)"
 
-gateway    -down-> elo_ws   : "HTTP REST\nParâmetro em Base64"
+gateway    -down-> elo_ws   : "HTTP REST\nParâmetro codificado"
 elo_ws     -down-> db       : "SQL\n(leitura / escrita)"
 
 gateway    -up->  wa_ext    : "HTTPS POST\n(resposta ao utilizador)"

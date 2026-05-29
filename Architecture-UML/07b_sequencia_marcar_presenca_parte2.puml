@@ -37,30 +37,32 @@ router -> presCmd : ExecuteAsync(msg)
 
 presCmd -> presCmd : Construir parâmetro:\nTOKEN|apiType|telefone|\nmensagem|data|email
 
-presCmd -> presCmd : Codificar → Base64
+presCmd -> presCmd : Codificar parâmetro
 
-presCmd -> ws : WCFRESTServiceCall(\n"POST", "metaim1", base64)
+presCmd -> ws : WCFRESTServiceCall(\n"POST", "metaim1", paramCodificado)
 
 note over ws
   Polly: Retry 3x
   Backoff: 1s → 2s → 4s
 end note
 
-ws -> elo : HTTP POST (REST)\nBody: "base64string"
+ws -> elo : HTTP POST (REST)\nBody: parâmetro codificado
 
 note over elo #FADBD8
-  1. Descodificar Base64
+  1. Descodificar parâmetro
   2. Validar token
-  3. CheckValidUserByPhoneNumber()
+  3. CheckValidUserByPhoneNumber(
+     authToken, tipoAPI,
+     telefone, email, ...)
   4. Converter UTC → TimeZone local
   5. saveBooking() → BD
 end note
 
-elo --> ws : Resposta Base64\n(ex: "OK|0")
+elo --> ws : Resposta codificada\n(ex: "OK|0")
 
 ws --> presCmd : rawResponse
 
-presCmd -> presCmd : Base64Decode(response)
+presCmd -> presCmd : Descodificar resposta
 presCmd -> presCmd : Analisar resposta:\n"OK|0" → Sucesso
 
 presCmd -> localizer : Get("Presence_Success", lang)

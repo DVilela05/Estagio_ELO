@@ -30,9 +30,9 @@ user -down-> teams : "Envia mensagem\nvia Teams"
 whatsapp -down-> gateway : "HTTP POST\n(Webhook + HMAC)"
 teams -down-> gateway : "HTTP POST\n(Webhook + JWT)"
 
-gateway -down-> elo : "HTTP POST\n(REST → WCF)\nBase64 encoded"
+gateway -down-> elo : "HTTP POST\n(REST → WCF)\nParâmetro codificado"
 
-elo -up-> gateway : "Resposta Base64\n(OK|0 / ERROR|...)"
+elo -up-> gateway : "Resposta codificada\n(OK|0 / ERROR|...)"
 
 gateway -up-> whatsapp : "HTTP POST\n(Resposta ao utilizador)"
 gateway -up-> teams : "HTTP POST\n(Reply Activity)"

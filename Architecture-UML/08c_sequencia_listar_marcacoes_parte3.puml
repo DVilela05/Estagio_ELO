@@ -35,24 +35,25 @@ listCmd -> listCmd : ProcessListagemAsync()
 
 listCmd -> listCmd : Construir parâmetro:\nTOKEN|apiType|telefone|\nlistagem|data|email|\nnQueryType|dateStart|dateEnd
 
-listCmd -> listCmd : Codificar → Base64
+listCmd -> listCmd : Codificar parâmetro
 
-listCmd -> ws : WCFRESTServiceCall(\n"POST", "metalm1", base64)
+listCmd -> ws : WCFRESTServiceCall(\n"POST", "metalm1", paramCodificado)
 
-ws -> elo : HTTP POST (REST)\nBody: "base64string"
+ws -> elo : HTTP POST (REST)\nBody: parâmetro codificado
 
 note over elo #FADBD8
-  1. Descodificar Base64
+  1. Descodificar parâmetro
   2. Validar utilizador
-  3. Consultar marcações\n   na BD para o período
-  4. Devolver lista codificada
+  3. Consultar marcações
+     na BD para o período
+  4. Devolver resposta codificada
 end note
 
-elo --> ws : Resposta Base64\n(ex: "12/06/2026 08:30|\n12/06/2026 12:30|...")
+elo --> ws : Resposta codificada\n(ex: "12/06/2026 08:30|\n12/06/2026 12:30|...")
 
 ws --> listCmd : rawResponse
 
-listCmd -> listCmd : Base64Decode(response)
+listCmd -> listCmd : Descodificar resposta
 listCmd -> listCmd : Verificar erros de negócio\n(INVALID_STARTDATETIME,\nNO_TIME_BOOKINGS, etc.)
 
 listCmd -> listCmd : ParseRealMarkingsList()\nAgrupar por dia,\nformatar como lista

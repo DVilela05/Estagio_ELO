@@ -49,7 +49,7 @@ router -down-> handlers : "Executar Ação"
 
 handlers -right-> localizer : "Obter Tradução"
 handlers -right-> tokenSvc : "Gerar Token"
-handlers -down-> wsUtils : "Parâmetro Base64"
+handlers -down-> wsUtils : "Parâmetro codificado"
 
 wsUtils -down-> elo_ext : "HTTP POST"
 
