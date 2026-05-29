@@ -26,7 +26,7 @@ namespace WebApplication1.Resources
                 "marcacao presença|marcacao presenca|cá estou|ca estou|estou cá|estou ca|cheguei",
 
             ["Listagem_Triggers"] =
-                "ver marcações|ver marcacoes|marcações|marcacoes|listar|" +
+                "ver marcações|ver marcacoes|marcações|marcacoes|" +
                 "listar marcação|listar marcações|listar marcacao|listar marcacoes|" +
                 "minhas marcações|minhas marcacoes|ver assiduidade|assiduidade|" +
                 "listar assiduidade|listar de assiduidade",
