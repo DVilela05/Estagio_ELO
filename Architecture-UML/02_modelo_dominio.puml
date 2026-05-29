@@ -4,107 +4,102 @@ skinparam shadowing false
 skinparam defaultFontName "Segoe UI"
 skinparam classFontSize 12
 skinparam classAttributeFontSize 11
+hide circle
 
 title Modelo de Domínio — Gateway Webhook de Assiduidade
 
-' ─── Enumerações ──────────────────────────────────────────
-enum MessagePlatform {
-    WhatsApp
-    Teams
+' ─── Entidades de Domínio ──────────────────────────────────
+class Colaborador {
+    + nome : string
+    + telefone : string
+    + email : string
+    + fusoHorario : string
 }
 
-enum SupportedLanguage {
-    Portuguese
-    English
-    French
-    Spanish
+class PlataformaMensagens {
+    + tipo : WhatsApp | Teams
 }
 
-' ─── Classes de Domínio ───────────────────────────────────
-class IncomingMessage {
-    + MessageId : string
-    + From : string
-    + ReplyEndpoint : string
-    + UserId : string
-    + UserName : string
-    + UserPhone : string?
-    + UserEmail : string?
-    + Body : string
-    + OriginalBody : string
-    + Platform : MessagePlatform
-    + ReceivedAt : DateTime
-    + SentAt : DateTime
-    + HasLocation : bool
-    + Language : SupportedLanguage?
-    + ConfirmationText : string?
+class Mensagem {
+    + corpo : string
+    + idioma : string
+    + timestamp : DateTime
 }
 
-class PendingConfirmation {
-    + OriginalMessage : IncomingMessage
-    + CommandName : string
-    + CreatedAt : DateTime
-    + InvalidAttempts : int
+class Comando {
+    + nome : string
+    + triggers : string[]
 }
 
-class PendingPeriodState {
-    + OriginalMessage : IncomingMessage
-    + CurrentState : ListagemState
-    + SelectedStartDate : DateTime
-    + SelectedEndDate : DateTime
-    + DetectedLanguage : SupportedLanguage?
-    + Attempts : int
-    + CreatedAt : DateTime
+class MarcacaoAssiduidade <<ELO ERP>> {
+    + timestamp : DateTime
+    + tipoMovimento : int
+    + fusoHorarioLocal : string
+    + coordenadas : string?
 }
 
-class Booking <<ELO Legacy>> {
-    + UIFuncionario : Guid
-    + CdRcsHumano : string
-    + DtHrMrc : DateTime
-    + Type : EnumBookingType
+class ConsultaMarcacoes <<ELO ERP>> {
+    + dataInicio : Date
+    + dataFim : Date
+    + marcacoes : MarcacaoAssiduidade[]
 }
 
-' ─── Relações ─────────────────────────────────────────────
-IncomingMessage --> MessagePlatform : plataforma
-IncomingMessage --> SupportedLanguage : idioma
-
-PendingConfirmation --> IncomingMessage : mensagem original
-PendingPeriodState --> IncomingMessage : mensagem original
-
-IncomingMessage ..> Booking : origina\n(após validação)
-IncomingMessage ..> ConsultaFerias : origina\n(após validação)
-
-class PendingFeriasState {
-    + OriginalMessage : IncomingMessage
-    + CurrentState : FeriasState
-    + SelectedYear : int
-    + DetectedLanguage : SupportedLanguage?
-    + Attempts : int
-    + CreatedAt : DateTime
+class ConsultaFerias <<ELO ERP>> {
+    + ano : int
+    + periodos : PeriodoFerias[]
 }
 
-class ConsultaFerias <<ELO Legacy>> {
-    + UIRcsHumano : Guid
-    + Ano : int
+class WebhookGateway {
+    + receber()
+    + normalizar()
+    + encaminhar()
+    + responder()
 }
 
-PendingFeriasState --> IncomingMessage : mensagem original
+class WebServiceERP <<Sistema Legado>> {
+    + validarIdentidade()
+    + registarMarcacao()
+    + consultarMarcacoes()
+    + consultarFerias()
+}
 
-note bottom of Booking
-  Entidade do sistema ELO.
-  Representa uma marcação de ponto
-  na base de dados da empresa.
+' ─── Relações ──────────────────────────────────────────────
+Colaborador "1" --> "1..*" PlataformaMensagens : interage através de
+
+PlataformaMensagens "1" --> "1" WebhookGateway : envia Mensagem
+
+Mensagem "1" --> "1" Colaborador : originada por
+Mensagem "1" ..> "1" Comando : é interpretada como
+
+WebhookGateway "1" --> "*" Comando : interpreta
+WebhookGateway "1" --> "1" WebServiceERP : comunica com
+
+Comando <|-- MarcacaoAssiduidade : tipo de
+Comando <|-- ConsultaMarcacoes   : tipo de
+Comando <|-- ConsultaFerias      : tipo de
+
+WebServiceERP "1" --> "*" MarcacaoAssiduidade : persiste
+WebServiceERP "1" --> "*" ConsultaMarcacoes   : consulta
+WebServiceERP "1" --> "*" ConsultaFerias      : consulta
+
+note right of WebhookGateway
+  Exposto à Internet.
+  Normaliza mensagens de
+  qualquer plataforma para
+  um modelo canónico interno.
 end note
 
-note bottom of PendingPeriodState
-  Estado temporário em memória.
-  Gere o fluxo multi-mensagem
-  da listagem de marcações.
+note right of WebServiceERP
+  Sistema legado (.NET FW 4.8).
+  Único ponto de acesso
+  à base de dados corporativa.
 end note
 
-note bottom of PendingFeriasState
-  Estado temporário em memória.
-  Gere o fluxo multi-mensagem
-  da consulta de férias.
+note bottom of Colaborador
+  Identificado pelo número de
+  telemóvel (WhatsApp) ou
+  endereço de e-mail (Teams).
+  Deve ter utilizador ERP associado.
 end note
 
 @enduml
