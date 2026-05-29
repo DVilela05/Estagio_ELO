@@ -9,7 +9,7 @@ top to bottom direction
 title Vista Lógica — Nível 3 (Componentes do Webhook Gateway)
 
 ' ─── Sistemas Externos ────────────────────────────────────
-rectangle "WhatsApp / Teams\n[APIs Externas]" as apis_ext #D5F5E3
+rectangle "WhatsApp / Teams\n[API Externa]" as apis_ext #D5F5E3
 rectangle "ELO Web Service\n[Sistema Legado]" as elo_ext #FADBD8
 
 ' ─── Gateway Webhook (.NET 8) ─────────────────────────────
