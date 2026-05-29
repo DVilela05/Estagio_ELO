@@ -24,18 +24,29 @@ rectangle "Gateway Webhook" {
     usecase "Consultar Férias" as UC9
     usecase "Consultar Ajuda" as UC3
 
-    ' ─── Include único por funcionalidade ──────────────────
+    ' ─── Processos partilhados (apenas os visíveis no diagrama) ─
     usecase "Confirmar Ação\n(Sim / Não)" as UC4
+    usecase "Detetar Idioma\n(PT/EN/FR/ES)" as UC6
+    usecase "Normalizar Texto\nda Mensagem" as UC8
 
-    ' ─── Ordenação vertical dos casos de uso ───────────────
+    ' ─── Ordenação vertical ────────────────────────────────
     UC1 -[hidden]down- UC2
     UC2 -[hidden]down- UC9
     UC9 -[hidden]down- UC3
 
-    ' ─── Relações include (apenas as distintas) ────────────
+    UC4 -[hidden]down- UC6
+    UC6 -[hidden]down- UC8
+
+    UC1 -[hidden]right- UC4
+
+    ' ─── UC1, UC2, UC9: confirmação (único distinto no diagrama)
     UC1 ..> UC4 : <<include>>
     UC2 ..> UC4 : <<include>>
     UC9 ..> UC4 : <<include>>
+
+    ' ─── UC3 (Ajuda): apenas deteção de idioma e normalização
+    UC3 ..> UC6 : <<include>>
+    UC3 ..> UC8 : <<include>>
 }
 
 ' ─── Ligações Ator → Casos de Uso ────────────────────────
@@ -44,10 +55,9 @@ user -- UC2
 user -- UC9
 user -- UC3
 
-' ─── Nota: processos transversais ─────────────────────────
-note bottom of UC3
-  Todos os casos de uso incluem
-  os seguintes processos transversais:
+' ─── Nota: processos transversais de UC1, UC2 e UC9 ───────
+note bottom of UC4
+  UC1, UC2 e UC9 incluem também:
   • Autenticar Mensagem
   • Detetar Idioma (PT / EN / FR / ES)
   • Codificar / Descodificar Base64
