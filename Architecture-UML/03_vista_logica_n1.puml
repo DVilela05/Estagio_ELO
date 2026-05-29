@@ -6,8 +6,7 @@ skinparam rectangleFontSize 13
 skinparam componentFontSize 12
 skinparam noteFontSize 11
 
-title Vista Lógica — Nível 1 (Diagrama de Contexto)
-
+title Vista Lógica Nível 1
 ' ─── Atores / Sistemas Externos ───────────────────────────
 actor "Colaborador" as user
 

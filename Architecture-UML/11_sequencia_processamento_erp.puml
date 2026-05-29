@@ -71,7 +71,7 @@ note over action
   Depende do método invocado:
   • metaim1 → saveBooking()
   • metalm1 → getBookings()
-  • metafr1 → getVacations()
+  • metalf1 → getVacations()
 end note
 
 action -> mrc : Leitura / Escrita na BD
