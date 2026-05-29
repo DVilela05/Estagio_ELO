@@ -6,6 +6,8 @@ skinparam actorStyle awesome
 skinparam packageStyle rectangle
 skinparam usecaseFontSize 12
 skinparam actorFontSize 12
+skinparam nodesep 30
+skinparam ranksep 40
 left to right direction
 
 title Diagrama de Casos de Uso — Gateway Webhook de Assiduidade
@@ -16,50 +18,24 @@ actor "Colaborador" as user
 ' ─── Sistema ──────────────────────────────────────────────
 rectangle "Gateway Webhook" {
 
-    ' ─── Casos de uso principais (centro) ─────────────────
+    ' ─── Casos de uso principais ───────────────────────────
     usecase "Marcar Presença" as UC1
     usecase "Listar Marcações\nde Assiduidade" as UC2
     usecase "Consultar Férias" as UC9
     usecase "Consultar Ajuda" as UC3
 
-    ' ─── Processos partilhados (direita) ───────────────────
+    ' ─── Include único por funcionalidade ──────────────────
     usecase "Confirmar Ação\n(Sim / Não)" as UC4
-    usecase "Autenticar\nMensagem" as UC5
-    usecase "Detetar Idioma\n(PT/EN/FR/ES)" as UC6
-    usecase "Codificar / Descodificar\nBase64" as UC7
-    usecase "Normalizar Texto\nda Mensagem" as UC8
 
-    ' ─── Separação visual entre colunas ────────────────────
+    ' ─── Ordenação vertical dos casos de uso ───────────────
     UC1 -[hidden]down- UC2
     UC2 -[hidden]down- UC9
     UC9 -[hidden]down- UC3
 
-    UC4 -[hidden]down- UC5
-    UC5 -[hidden]down- UC6
-    UC6 -[hidden]down- UC7
-    UC7 -[hidden]down- UC8
-
-    UC1 -[hidden]right- UC4
-
-    ' ─── Relações include ──────────────────────────────────
+    ' ─── Relações include (apenas as distintas) ────────────
     UC1 ..> UC4 : <<include>>
-    UC1 ..> UC5 : <<include>>
-    UC1 ..> UC6 : <<include>>
-    UC1 ..> UC7 : <<include>>
-    UC1 ..> UC8 : <<include>>
-
-    UC2 ..> UC5 : <<include>>
-    UC2 ..> UC6 : <<include>>
-    UC2 ..> UC7 : <<include>>
-    UC2 ..> UC8 : <<include>>
-
-    UC9 ..> UC5 : <<include>>
-    UC9 ..> UC6 : <<include>>
-    UC9 ..> UC7 : <<include>>
-    UC9 ..> UC8 : <<include>>
-
-    UC3 ..> UC6 : <<include>>
-    UC3 ..> UC8 : <<include>>
+    UC2 ..> UC4 : <<include>>
+    UC9 ..> UC4 : <<include>>
 }
 
 ' ─── Ligações Ator → Casos de Uso ────────────────────────
@@ -67,5 +43,15 @@ user -- UC1
 user -- UC2
 user -- UC9
 user -- UC3
+
+' ─── Nota: processos transversais ─────────────────────────
+note bottom of UC3
+  Todos os casos de uso incluem
+  os seguintes processos transversais:
+  • Autenticar Mensagem
+  • Detetar Idioma (PT / EN / FR / ES)
+  • Codificar / Descodificar Base64
+  • Normalizar Texto da Mensagem
+end note
 
 @enduml
