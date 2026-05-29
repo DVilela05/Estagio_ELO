@@ -4,18 +4,17 @@ skinparam shadowing false
 skinparam defaultFontName "Segoe UI"
 skinparam actorStyle awesome
 skinparam packageStyle rectangle
-skinparam usecaseFontSize 12
-skinparam actorFontSize 12
-skinparam nodesep 30
-skinparam ranksep 40
+skinparam usecaseFontSize 10
+skinparam actorFontSize 11
+skinparam nodesep 15
+skinparam ranksep 25
+skinparam padding 4
 left to right direction
 
 title Diagrama de Casos de Uso — Gateway Webhook de Assiduidade
 
-' ─── Ator ─────────────────────────────────────────────────
 actor "Colaborador" as user
 
-' ─── Sistema ──────────────────────────────────────────────
 rectangle "Gateway Webhook" {
 
     ' ─── Casos de uso principais ───────────────────────────
@@ -24,44 +23,54 @@ rectangle "Gateway Webhook" {
     usecase "Consultar Férias" as UC9
     usecase "Consultar Ajuda" as UC3
 
-    ' ─── Processos partilhados (apenas os visíveis no diagrama) ─
+    ' ─── Processos partilhados ─────────────────────────────
     usecase "Confirmar Ação\n(Sim / Não)" as UC4
+    usecase "Autenticar\nMensagem" as UC5
     usecase "Detetar Idioma\n(PT/EN/FR/ES)" as UC6
+    usecase "Codificar /\nDescodificar Base64" as UC7
     usecase "Normalizar Texto\nda Mensagem" as UC8
 
-    ' ─── Ordenação vertical ────────────────────────────────
+    ' ─── Ordenação vertical das colunas ────────────────────
     UC1 -[hidden]down- UC2
     UC2 -[hidden]down- UC9
     UC9 -[hidden]down- UC3
 
-    UC4 -[hidden]down- UC6
-    UC6 -[hidden]down- UC8
+    UC4 -[hidden]down- UC5
+    UC5 -[hidden]down- UC6
+    UC6 -[hidden]down- UC7
+    UC7 -[hidden]down- UC8
 
     UC1 -[hidden]right- UC4
 
-    ' ─── UC1, UC2, UC9: confirmação (único distinto no diagrama)
+    ' ─── UC1: Marcar Presença (todos os processos) ─────────
     UC1 ..> UC4 : <<include>>
-    UC2 ..> UC4 : <<include>>
-    UC9 ..> UC4 : <<include>>
+    UC1 ..> UC5 : <<include>>
+    UC1 ..> UC6 : <<include>>
+    UC1 ..> UC7 : <<include>>
+    UC1 ..> UC8 : <<include>>
 
-    ' ─── UC3 (Ajuda): apenas deteção de idioma e normalização
+    ' ─── UC2: Listar Marcações (todos exceto confirmar) ────
+    UC2 ..> UC4 : <<include>>
+    UC2 ..> UC5 : <<include>>
+    UC2 ..> UC6 : <<include>>
+    UC2 ..> UC7 : <<include>>
+    UC2 ..> UC8 : <<include>>
+
+    ' ─── UC9: Consultar Férias (todos) ─────────────────────
+    UC9 ..> UC4 : <<include>>
+    UC9 ..> UC5 : <<include>>
+    UC9 ..> UC6 : <<include>>
+    UC9 ..> UC7 : <<include>>
+    UC9 ..> UC8 : <<include>>
+
+    ' ─── UC3: Consultar Ajuda (só idioma e normalização) ───
     UC3 ..> UC6 : <<include>>
     UC3 ..> UC8 : <<include>>
 }
 
-' ─── Ligações Ator → Casos de Uso ────────────────────────
 user -- UC1
 user -- UC2
 user -- UC9
 user -- UC3
-
-' ─── Nota: processos transversais de UC1, UC2 e UC9 ───────
-note bottom of UC4
-  UC1, UC2 e UC9 incluem também:
-  • Autenticar Mensagem
-  • Detetar Idioma (PT / EN / FR / ES)
-  • Codificar / Descodificar Base64
-  • Normalizar Texto da Mensagem
-end note
 
 @enduml
