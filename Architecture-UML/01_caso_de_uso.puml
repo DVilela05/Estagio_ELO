@@ -6,6 +6,7 @@ skinparam actorStyle awesome
 skinparam packageStyle rectangle
 skinparam usecaseFontSize 12
 skinparam actorFontSize 12
+top to bottom direction
 
 title Diagrama de Casos de Uso — Gateway Webhook de Assiduidade
 
@@ -13,38 +14,51 @@ title Diagrama de Casos de Uso — Gateway Webhook de Assiduidade
 actor "Colaborador" as user
 
 ' ─── Sistema ──────────────────────────────────────────────
-rectangle "Gateway Webhook " {
+rectangle "Gateway Webhook" {
 
+    ' ─── Coluna esquerda: Casos de uso principais ──────────
     usecase "Marcar Presença" as UC1
     usecase "Listar Marcações\nde Assiduidade" as UC2
     usecase "Consultar Férias" as UC9
     usecase "Consultar Ajuda" as UC3
     usecase "Confirmar Ação\n(Sim / Não)" as UC4
 
+    ' ─── Coluna direita: Processos partilhados ─────────────
     usecase "Autenticar\nMensagem" as UC5
     usecase "Detetar Idioma\n(PT/EN/FR/ES)" as UC6
     usecase "Codificar / Descodificar\nBase64" as UC7
     usecase "Normalizar Texto\nda Mensagem" as UC8
 
-    ' ─── Relações entre Casos de Uso ──────────────────────
+    ' ─── Posicionamento relativo (2 colunas) ───────────────
+    UC1 -[hidden]down- UC2
+    UC2 -[hidden]down- UC9
+    UC9 -[hidden]down- UC3
+    UC3 -[hidden]down- UC4
+
+    UC5 -[hidden]down- UC6
+    UC6 -[hidden]down- UC7
+    UC7 -[hidden]down- UC8
+
+    UC1 -[hidden]right- UC5
+
+    ' ─── Relações include ──────────────────────────────────
     UC1 ..> UC4 : <<include>>
     UC1 ..> UC5 : <<include>>
     UC1 ..> UC7 : <<include>>
     UC1 ..> UC6 : <<include>>
+    UC1 ..> UC8 : <<include>>
 
     UC2 ..> UC5 : <<include>>
     UC2 ..> UC7 : <<include>>
     UC2 ..> UC6 : <<include>>
+    UC2 ..> UC8 : <<include>>
 
     UC9 ..> UC5 : <<include>>
     UC9 ..> UC7 : <<include>>
     UC9 ..> UC6 : <<include>>
+    UC9 ..> UC8 : <<include>>
 
     UC3 ..> UC6 : <<include>>
-
-    UC1 ..> UC8 : <<include>>
-    UC2 ..> UC8 : <<include>>
-    UC9 ..> UC8 : <<include>>
     UC3 ..> UC8 : <<include>>
 }
 
@@ -53,6 +67,5 @@ user -- UC1
 user -- UC2
 user -- UC9
 user -- UC3
-
 
 @enduml

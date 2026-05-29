@@ -13,11 +13,8 @@ participant "Webhook\nGateway" as gw <<Gateway>>
 participant "Web Service\n(metaim1 / metalm1\n/ metalf1)" as ws <<WCF>>
 participant "AuthData\nInterpreter" as decoder <<WCF>>
 participant "Authenticator" as auth <<WCF>>
-database "UtlGuUsers\n(Utilizadores)" as usr <<BD>>
-database "RcsHumanos\n(Recursos Humanos)" as rh <<BD>>
 participant "Módulo de Ação\n(Booking / Listagem\n/ Férias)" as action <<WCF>>
-database "CthMarcacoesLG\n(Marcações)" as mrc <<BD>>
-database "ngmobilewslog\n(Logs)" as logs <<BD>>
+database "Base de Dados\n(SQL Server)" as db <<BD>>
 
 ' ─── Fluxo de Processamento ───────────────────────────────
 
@@ -45,11 +42,11 @@ end
 
 ws -> auth : CheckValidUserByPhoneNumber\n(authToken, strNumTelefone)
 
-auth -> rh : Pesquisar por telefone\nou email
-rh --> auth : UIRcsHumano,\nCdRcsHumano,\nTimeZoneID
+auth -> db : Pesquisar colaborador\n(RcsHumanos — por telefone ou email)
+db --> auth : UIRcsHumano, CdRcsHumano, TimeZoneID
 
-auth -> usr : Validar credenciais\nativas (UIUser)
-usr --> auth : CdUser, UIUser
+auth -> db : Validar utilizador associado\n(UtlGuUsers — UIUser ativo)
+db --> auth : CdUser, UIUser
 
 alt Colaborador não encontrado (lrError)
     auth --> ws : LoginResult = Error
@@ -74,14 +71,14 @@ note over action
   • metalf1 → getVacations()
 end note
 
-action -> mrc : Leitura / Escrita na BD
-mrc --> action : Resultado
+action -> db : Leitura / Escrita na BD\n(CthMarcacoesLG / tabelas de Férias)
+db --> action : Resultado
 
 action --> ws : Resultado da operação
 
 ' ─── Registo de Log ───────────────────────────────────────
 
-ws -> logs : Inserir registo\n(UIEmpRede, APISource,\nSource, Action,\nUIRcsHumano, UIUser)
+ws -> db : Inserir registo de auditoria\n(UtlAPIIntegrationToolLog —\nUIEmpRede, APISource, Source,\nAction, UIRcsHumano, UIUser)
 
 ' ─── Resposta ao Gateway ─────────────────────────────────
 
