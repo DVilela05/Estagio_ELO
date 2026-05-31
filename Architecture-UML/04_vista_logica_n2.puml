@@ -23,13 +23,13 @@ package "Infraestrutura ELO [Sistema]" #FFFFF0 {
 
     ' ─── Zona Exposta (DMZ) ─────────────────────────────────────────
     package "Zona Exposta (Internet)" #FCF3CF {
-        rectangle "Webhook Gateway\n[Contentor: ASP.NET Core 8]\nAloja os controladores HTTP,\no pipeline de segurança\ne os handlers de comando." as gateway #FCF3CF
+        rectangle "Webhook Gateway\n[Contentor: ASP.NET Core 8]" as gateway #FCF3CF
     }
 
     ' ─── Zona Interna ───────────────────────────────────────────────
     package "Rede Interna (Intranet)" #FADBD8 {
-        rectangle "ELO Web Service\n[Contentor: .NET FW 4.8 / WCF]\nCentraliza a lógica de negócio\ne a bridge com a base de dados." as elo_ws #FADBD8
-        database "Base de Dados Corporativa\n[Contentor: SQL Server]\nPersistência de Marcações,\nRecursos Humanos e Logs." as db #EAECEE
+        rectangle "ELO Web Service\n[Contentor: .NET FW 4.8 / WCF]" as elo_ws #FADBD8
+        database "Base de Dados Corporativa\n[Contentor: SQL Server]" as db #EAECEE
     }
 }
 
@@ -37,7 +37,7 @@ package "Infraestrutura ELO [Sistema]" #FFFFF0 {
 wa_ext     -down-> gateway  : "HTTPS / JSON\n+ HMAC-SHA256"
 teams_ext  -down-> gateway  : "HTTPS / JSON\n+ JWT (Bot Framework)"
 
-gateway    -down-> elo_ws   : "HTTP REST\nParâmetro codificado"
+gateway    -down-> elo_ws   : "HTTP REST"
 elo_ws     -down-> db       : "SQL\n(leitura / escrita)"
 
 gateway    -up->  wa_ext    : "HTTPS POST\n(resposta ao utilizador)"
